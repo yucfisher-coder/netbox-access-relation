@@ -1,0 +1,28 @@
+{% load form_helpers %}
+{% load i18n %}
+<div class="system-address-row card mb-3">
+  <div class="card-header">
+    {% if address_form.instance.pk %}
+      {% trans "Existing address" %}: {{ address_form.instance.address_object }}
+    {% else %}
+      {% trans "New address" %}
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% for hidden in address_form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if address_form.non_field_errors %}<div class="alert alert-danger">{{ address_form.non_field_errors }}</div>{% endif %}
+    <div data-address-field="native_operation">{% render_field address_form.native_operation %}</div>
+    <div data-address-field="native_type">{% render_field address_form.native_type %}</div>
+    <div data-address-field="prefix">{% render_field address_form.prefix %}</div>
+    <div data-address-field="ip_address">{% render_field address_form.ip_address %}</div>
+    <div data-address-field="ip_range">{% render_field address_form.ip_range %}</div>
+    <div data-address-field="native_prefix">{% render_field address_form.native_prefix %}</div>
+    <div data-address-field="native_ip_address">{% render_field address_form.native_ip_address %}</div>
+    <div data-address-field="native_range_start">{% render_field address_form.native_range_start %}</div>
+    <div data-address-field="native_range_end">{% render_field address_form.native_range_end %}</div>
+    <div data-address-field="native_vrf">{% render_field address_form.native_vrf %}</div>
+    <div data-address-field="native_status">{% render_field address_form.native_status %}</div>
+    <div data-address-field="native_description">{% render_field address_form.native_description %}</div>
+    {% if address_form.DELETE %}<div data-address-field="DELETE">{% render_field address_form.DELETE %}</div>{% endif %}
+  </div>
+</div>

@@ -1,0 +1,59 @@
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col col-md-10 col-xl-9">
+      <div class="card">
+        <h2 class="card-header">{{ title }}</h2>
+        <div class="card-body">
+          <p class="text-secondary">
+            请上传带版本号的模板进行整批预检。无错误的处理计划经确认后才会写入；导入只新增缺失对象。
+          </p>
+          <a class="btn btn-outline-primary mb-3" href="{{ template_url }}">
+            <i class="mdi mdi-download"></i> 下载 XLSX 模板
+          </a>
+
+          {% if not plan or plan.errors %}
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              {% render_form form %}
+              <button class="btn btn-primary" type="submit">预检工作簿</button>
+            </form>
+          {% endif %}
+
+          {% if plan %}
+            <hr>
+            <h3>{% if applied %}导入结果{% else %}预检结果{% endif %}</h3>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              {% for action, count in plan.counts.items %}<span class="badge text-bg-secondary">{{ action }}: {{ count }}</span>{% endfor %}
+              <span class="badge text-bg-{% if plan.errors %}danger{% else %}success{% endif %}">错误: {{ plan.errors|length }}</span>
+            </div>
+
+            {% if plan.errors %}
+              <div class="alert alert-danger">必须修正全部错误后才能导入此批数据。</div>
+              <div class="table-responsive"><table class="table table-hover">
+                <thead><tr><th>工作表</th><th>行号</th><th>字段</th><th>原始值</th><th>原因</th></tr></thead>
+                <tbody>{% for issue in plan.errors %}<tr><td>{{ issue.sheet }}</td><td>{{ issue.row }}</td><td>{{ issue.field }}</td><td>{{ issue.value }}</td><td>{{ issue.reason }}</td></tr>{% endfor %}</tbody>
+              </table></div>
+            {% else %}
+              <div class="table-responsive"><table class="table table-hover">
+                <thead><tr><th>工作表</th><th>行号</th><th>操作</th><th>处理计划</th></tr></thead>
+                <tbody>{% for row in plan.rows %}<tr><td>{{ row.sheet }}</td><td>{{ row.row }}</td><td>{{ row.action }}</td><td>{{ row.summary }}</td></tr>{% empty %}<tr><td colspan="4">没有需要写入的变更。</td></tr>{% endfor %}</tbody>
+              </table></div>
+              {% if not applied %}
+                <form method="post">
+                  {% csrf_token %}<input type="hidden" name="confirm" value="1"><input type="hidden" name="token" value="{{ token }}">
+                  <button class="btn btn-success" type="submit">确认原子导入</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

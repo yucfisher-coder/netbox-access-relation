@@ -1,0 +1,105 @@
+{% extends 'generic/object_edit.html' %}
+{% load form_helpers %}
+{% load i18n %}
+
+{% block form %}
+  {% if affected_policies %}
+    <div class="alert alert-warning" role="alert">
+      <strong>影响提示：</strong>修改地址会立即影响以下访问关系的 IPAM 证据与区域判定：
+      {% for policy in affected_policies %}<a href="{{ policy.get_absolute_url }}">{{ policy }}</a>{% if not forloop.last %}、{% endif %}{% endfor %}。
+    </div>
+  {% endif %}
+  {% include 'htmx/form.html' %}
+
+  {% if form.address_formset %}
+    <div class="field-group mb-5" id="system-addresses">
+      <div class="row mb-3">
+        <div class="col-9 offset-3 d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="mb-1">{% trans "System addresses" %}</h2>
+            <div class="text-secondary">{% trans "Maintain multiple address links in one save. Only fields for the selected operation are shown." %}</div>
+          </div>
+          <button type="button" class="btn btn-outline-primary" id="add-system-address">
+            <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add address" %}
+          </button>
+        </div>
+      </div>
+
+      {{ form.address_formset.management_form }}
+      {% if form.address_formset.non_form_errors %}
+        <div class="row mb-3"><div class="col-9 offset-3">
+          <div class="alert alert-danger" role="alert">{{ form.address_formset.non_form_errors }}</div>
+        </div></div>
+      {% endif %}
+
+      <div id="system-address-forms">
+        {% for address_form in form.address_formset.forms %}
+          {% include 'netbox_access_relations/inc/system_address_row.html' with address_form=address_form %}
+        {% endfor %}
+      </div>
+
+      <template id="empty-system-address-form">
+        {% include 'netbox_access_relations/inc/system_address_row.html' with address_form=form.address_formset.empty_form %}
+      </template>
+    </div>
+  {% endif %}
+{% endblock form %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('system-address-forms');
+      const template = document.getElementById('empty-system-address-form');
+      const addButton = document.getElementById('add-system-address');
+      const totalForms = document.getElementById('id_addresses-TOTAL_FORMS');
+      if (!container || !template || !addButton || !totalForms) return;
+
+      const selectedValue = (row, suffix) => row.querySelector(`[name$="-${suffix}"]`)?.value;
+      const setVisibility = (row, clearHidden = false) => {
+        const operation = selectedValue(row, 'native_operation');
+        const type = selectedValue(row, 'native_type');
+        const visible = new Set(['native_operation', 'native_type', 'DELETE']);
+        if (operation === 'link') visible.add(type);
+        if (operation === 'create' || operation === 'update') {
+          visible.add(`native_${type}`);
+          if (type === 'ip_range') {
+            visible.add('native_range_start');
+            visible.add('native_range_end');
+          }
+          visible.add('native_vrf');
+          visible.add('native_status');
+          visible.add('native_description');
+        }
+        row.querySelectorAll('[data-address-field]').forEach(group => {
+          const show = visible.has(group.dataset.addressField);
+          group.classList.toggle('d-none', !show);
+          if (!show && clearHidden) {
+            group.querySelectorAll('input, select, textarea').forEach(control => {
+              if (control.type === 'checkbox') control.checked = false;
+              else control.value = '';
+            });
+          }
+        });
+      };
+
+      const bindRow = row => {
+        setVisibility(row);
+        row.querySelectorAll('[name$="-native_operation"], [name$="-native_type"]').forEach(control => {
+          control.addEventListener('change', () => setVisibility(row, true));
+        });
+      };
+      container.querySelectorAll('.system-address-row').forEach(bindRow);
+
+      addButton.addEventListener('click', () => {
+        const index = Number.parseInt(totalForms.value, 10);
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = template.innerHTML.replaceAll('__prefix__', index);
+        const row = wrapper.firstElementChild;
+        container.appendChild(row);
+        totalForms.value = index + 1;
+        bindRow(row);
+      });
+    });
+  </script>
+{% endblock javascript %}

@@ -1,0 +1,12 @@
+include CHANGELOG.md
+include COMPATIBILITY.md
+include CONTRIBUTING.md
+include LICENSE
+include README.md
+include SECURITY.md
+include netbox_access_relations/netbox-plugin.yaml
+recursive-include netbox_access_relations/locale *.mo *.po
+recursive-include netbox_access_relations/static *
+recursive-include netbox_access_relations/templates *.html
+global-exclude *.py[cod]
+global-exclude __pycache__

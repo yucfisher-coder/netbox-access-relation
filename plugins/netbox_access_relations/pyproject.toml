@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-access-relations"
+version = "1.0.3"
+description = "Manage business systems, IP addresses, and directional access policies in NetBox"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [
+  { name = "NetBox Access Relations maintainers" },
+]
+keywords = ["netbox", "netbox-plugin", "network-automation", "access-policy", "ipam"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Framework :: Django",
+  "Intended Audience :: Information Technology",
+  "Natural Language :: Chinese (Simplified)",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Networking",
+]
+dependencies = [
+  "netbox>=4.7.0,<4.8.0",
+  "openpyxl>=3.1,<4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["netbox_access_relations*"]
+
+[tool.setuptools.package-data]
+netbox_access_relations = [
+  "locale/**/*.mo",
+  "locale/**/*.po",
+  "templates/**/*.html",
+  "static/**/*",
+  "netbox-plugin.yaml",
+]

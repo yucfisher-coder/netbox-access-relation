@@ -1,0 +1,9 @@
+# NetBox plugin manifest (NetBox 4.2+ plugin registry metadata)
+name: netbox_access_relations
+verbose_name: NetBox Access Relations
+author: NetBox Access Relations maintainers
+description: >-
+  Manage business systems, IP addresses, and directional access policies in NetBox.
+version: 1.0.3
+min_netbox_version: "4.7.0"
+max_netbox_version: "4.7.99"

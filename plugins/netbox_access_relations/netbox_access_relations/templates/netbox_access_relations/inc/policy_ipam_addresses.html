@@ -1,0 +1,28 @@
+{% load i18n %}
+{% if perms.netbox_access_relations.view_systemaddress %}
+  {% if endpoint == "source" %}
+    {% with addresses=record.source_system.addresses.all %}
+      {% for address in addresses %}
+        <div class="mb-2">
+          <span class="badge text-bg-light">{{ address.address_type }}</span>
+          <a href="{{ address.address_object.get_absolute_url }}">{{ address.address_object }}</a>
+          {% if address.vrf %}<small class="d-block text-secondary">VRF：<a href="{{ address.vrf.get_absolute_url }}">{{ address.vrf }}</a></small>{% endif %}
+          <small class="d-block text-secondary">安全区域：{{ address.zone_evidence.bucket.label }}</small>
+        </div>
+      {% empty %}<span class="text-secondary">{% trans "No associated IPAM address" %}</span>{% endfor %}
+    {% endwith %}
+  {% else %}
+    {% with addresses=record.target_system.addresses.all %}
+      {% for address in addresses %}
+        <div class="mb-2">
+          <span class="badge text-bg-light">{{ address.address_type }}</span>
+          <a href="{{ address.address_object.get_absolute_url }}">{{ address.address_object }}</a>
+          {% if address.vrf %}<small class="d-block text-secondary">VRF：<a href="{{ address.vrf.get_absolute_url }}">{{ address.vrf }}</a></small>{% endif %}
+          <small class="d-block text-secondary">安全区域：{{ address.zone_evidence.bucket.label }}</small>
+        </div>
+      {% empty %}<span class="text-secondary">{% trans "No associated IPAM address" %}</span>{% endfor %}
+    {% endwith %}
+  {% endif %}
+{% else %}
+  <span class="text-secondary">—</span>
+{% endif %}

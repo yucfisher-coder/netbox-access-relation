@@ -1,0 +1,12 @@
+{% extends 'base/layout.html' %}
+{% load i18n %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+  <div class="row justify-content-center"><div class="col col-md-8 col-lg-6">
+    <div class="card"><h2 class="card-header">{{ title }}</h2><div class="card-body">
+      <div class="alert alert-warning">终止后该关系将立即变为已失效。此操作会写入新的失效时间，但不会删除关系、地址证据或服务项。</div>
+      <dl class="row"><dt class="col-4">访问关系</dt><dd class="col-8">{{ object }}</dd><dt class="col-4">当前状态</dt><dd class="col-8">{{ object.effective_status_label }}</dd></dl>
+      <form method="post">{% csrf_token %}<div class="text-end"><a class="btn btn-outline-secondary" href="{{ object.get_absolute_url }}">取消</a> <button class="btn btn-danger" type="submit">确认提前终止</button></div></form>
+    </div></div>
+  </div></div>
+{% endblock %}

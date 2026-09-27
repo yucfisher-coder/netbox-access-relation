@@ -1,0 +1,73 @@
+{% extends 'generic/object_edit.html' %}
+{% load form_helpers %}
+{% load i18n %}
+
+{% block form %}
+  {% if form.is_bound and form.errors %}
+    <div class="alert alert-danger" role="alert">
+      <strong>{% trans "Access policy entry failed." %}</strong>
+      {% trans "Review the highlighted policy and service fields below, then submit again." %}
+    </div>
+  {% endif %}
+  {% include 'htmx/form.html' %}
+
+  <div class="field-group mb-5" id="policy-services">
+    <div class="row mb-3">
+      <div class="col-9 offset-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h2 class="mb-1">{% trans "Policy services" %}</h2>
+          <div class="text-secondary">{% trans "Add one or more TCP or UDP services. Use ANY without port values." %}</div>
+        </div>
+        <button type="button" class="btn btn-outline-primary" id="add-policy-service">
+          <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add service" %}
+        </button>
+      </div>
+    </div>
+
+    {{ form.service_formset.management_form }}
+    {% if form.service_formset.non_form_errors %}
+      <div class="row mb-3">
+        <div class="col-9 offset-3">
+          <div class="alert alert-danger" role="alert">{{ form.service_formset.non_form_errors }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div id="policy-service-forms">
+      {% for service_form in form.service_formset.forms %}
+        <div class="policy-service-form border rounded p-3 mb-3">
+          {% for hidden in service_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {% for field in service_form.visible_fields %}{% render_field field %}{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <template id="empty-policy-service-form">
+      <div class="policy-service-form border rounded p-3 mb-3">
+        {% for hidden in form.service_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+        {% for field in form.service_formset.empty_form.visible_fields %}{% render_field field %}{% endfor %}
+      </div>
+    </template>
+  </div>
+{% endblock form %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const addButton = document.getElementById('add-policy-service');
+      const container = document.getElementById('policy-service-forms');
+      const template = document.getElementById('empty-policy-service-form');
+      const totalForms = document.getElementById('id_services-TOTAL_FORMS');
+      if (!addButton || !container || !template || !totalForms) return;
+
+      addButton.addEventListener('click', () => {
+        const index = Number.parseInt(totalForms.value, 10);
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = template.innerHTML.replaceAll('__prefix__', index);
+        container.appendChild(wrapper.firstElementChild);
+        totalForms.value = index + 1;
+      });
+    });
+  </script>
+{% endblock javascript %}

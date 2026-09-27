@@ -1,0 +1,414 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: netbox-access-relations 0.1.0\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Access Relations"
+msgstr "访问关系"
+
+msgid "Access relations"
+msgstr "访问关系"
+
+msgid "Manage access relations using supported NetBox extension points."
+msgstr "使用 NetBox 支持的扩展机制管理访问关系。"
+
+msgid "Application system"
+msgstr "业务系统"
+
+msgid "Application systems"
+msgstr "业务系统"
+
+msgid "Add application system"
+msgstr "新增业务系统"
+
+msgid "System alias"
+msgstr "系统别名"
+
+msgid "System aliases"
+msgstr "系统别名"
+
+msgid "Add system alias"
+msgstr "新增系统别名"
+
+msgid "Add alias"
+msgstr "添加别名"
+
+msgid "Import application systems and addresses"
+msgstr "导入业务系统及地址"
+
+msgid "Import access policies and services"
+msgstr "导入访问关系及服务项"
+
+msgid "Import systems and addresses"
+msgstr "导入系统及地址"
+
+msgid "Import policies and services"
+msgstr "导入关系及服务项"
+
+msgid "Associate address"
+msgstr "关联地址"
+
+msgid "Maintain addresses"
+msgstr "维护地址"
+
+msgid "Maintain multiple address links in one save. Only fields for the selected operation are shown."
+msgstr "一次保存可维护多条地址关联，页面只显示当前操作需要填写的字段。"
+
+msgid "Add address"
+msgstr "添加地址"
+
+msgid "Existing address"
+msgstr "现有地址"
+
+msgid "New address"
+msgstr "新增地址"
+
+msgid "Replace with an existing IPAM object"
+msgstr "更换为另一个现有 IPAM 对象"
+
+msgid "Unlink this address"
+msgstr "解除此地址关联"
+
+msgid "You do not have permission to unlink one or more addresses."
+msgstr "您没有权限解除一条或多条地址关联。"
+
+msgid "You do not have permission to modify one or more address links."
+msgstr "您没有权限修改一条或多条地址关联。"
+
+msgid "You do not have permission to add address links."
+msgstr "您没有权限新增地址关联。"
+
+msgid "You do not have permission to add this address link."
+msgstr "您没有权限新增此地址关联。"
+
+msgid "Alias"
+msgstr "别名"
+
+msgid "A system alias with this name already exists."
+msgstr "已存在同名的系统别名。"
+
+msgid "This name is already used by a system alias."
+msgstr "该名称已被系统别名使用。"
+
+msgid "This alias is already used as an application system name."
+msgstr "该别名已被用作业务系统规范名。"
+
+msgid "Alias cannot be blank."
+msgstr "别名不能为空。"
+
+msgid "System address"
+msgstr "系统地址"
+
+msgid "System addresses"
+msgstr "系统地址"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Status"
+msgstr "状态"
+
+msgctxt "application system status"
+msgid "Active"
+msgstr "启用"
+
+msgctxt "application system status"
+msgid "Inactive"
+msgstr "停用"
+
+msgid "Co-located"
+msgstr "合并部署"
+
+msgid "Automatically set when a native address object is shared with another system."
+msgstr "当原生地址对象被其他业务系统共同使用时自动标记。"
+
+msgid "An application system with this name already exists."
+msgstr "已存在同名的业务系统。"
+
+msgid "Name cannot be blank."
+msgstr "名称不能为空。"
+
+msgid "Comments"
+msgstr "备注"
+
+msgid "Ownership"
+msgstr "归属"
+
+msgid "Description"
+msgstr "描述"
+
+msgid "Owner"
+msgstr "负责人"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Native address"
+msgstr "原生地址"
+
+msgid "IP information"
+msgstr "IP 信息"
+
+msgid "Prefix"
+msgstr "前缀"
+
+msgid "IP address"
+msgstr "IP 地址"
+
+msgid "IP range"
+msgstr "IP 范围"
+
+msgid "Select exactly one Prefix, IP address, or IP range."
+msgstr "必须且只能选择一个前缀、IP 地址或 IP 范围。"
+
+msgid "Access policy"
+msgstr "访问关系"
+
+msgid "Access policies"
+msgstr "访问关系"
+
+msgid "Add access policy"
+msgstr "新增访问关系"
+
+msgid "Policy service"
+msgstr "服务项"
+
+msgid "Policy services"
+msgstr "服务项"
+
+msgid "Source IPAM information"
+msgstr "源端 IPAM 信息"
+
+msgid "Target IPAM information"
+msgstr "目标端 IPAM 信息"
+
+msgid "Source system IPAM information"
+msgstr "源业务系统 IPAM 信息"
+
+msgid "Target system IPAM information"
+msgstr "目标业务系统 IPAM 信息"
+
+msgid "No associated IPAM address"
+msgstr "暂无关联的 IPAM 地址"
+
+msgid "Access policy entry failed."
+msgstr "访问关系录入失败。"
+
+msgid "Review the highlighted policy and service fields below, then submit again."
+msgstr "请检查下方标出的访问关系及服务项字段，然后重新提交。"
+
+msgid "The access policy could not be saved. Please correct any errors and try again."
+msgstr "访问关系保存失败，请修正错误后重试。"
+
+msgid "Add policy service"
+msgstr "新增服务项"
+
+msgid "Add service"
+msgstr "添加服务项"
+
+msgid "Add one or more TCP or UDP services. Use ANY without port values."
+msgstr "添加一个或多个 TCP 或 UDP 服务项；选择 ANY 时不要填写端口。"
+
+msgid "An access policy requires at least one service."
+msgstr "访问关系至少需要一个服务项。"
+
+msgid "Duplicate services are not allowed within an access policy."
+msgstr "同一访问关系中不允许存在重复服务项。"
+
+msgid "Source system"
+msgstr "源业务系统"
+
+msgid "Target system"
+msgstr "目标业务系统"
+
+msgid "Either system"
+msgstr "任一业务系统"
+
+msgid "Category"
+msgstr "分类"
+
+msgid "Endpoints"
+msgstr "通信端点"
+
+msgid "Validity"
+msgstr "有效期"
+
+msgid "Valid from"
+msgstr "生效时间"
+
+msgid "Valid until"
+msgstr "失效时间"
+
+msgid "Details"
+msgstr "详细信息"
+
+msgid "Effective status"
+msgstr "当前状态"
+
+msgid "Upcoming"
+msgstr "未生效"
+
+msgctxt "access policy status"
+msgid "Active"
+msgstr "有效"
+
+msgid "Expired"
+msgstr "已失效"
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Any port"
+msgstr "任意端口"
+
+msgid "Port"
+msgstr "端口"
+
+msgid "Port start"
+msgstr "起始端口"
+
+msgid "Port end"
+msgstr "结束端口"
+
+
+msgid "Destination port"
+msgstr "目标端口"
+
+msgid "Services"
+msgstr "服务项"
+
+msgid "Service and status"
+msgstr "服务与状态"
+
+msgid "Outbound access policies"
+msgstr "出站访问关系"
+
+msgid "Inbound access policies"
+msgstr "入站访问关系"
+
+msgid "ANY"
+msgstr "任意"
+
+msgid "Tags"
+msgstr "标签"
+
+msgid "Operation"
+msgstr "操作"
+
+msgid "IPAM operation"
+msgstr "IPAM 操作"
+
+msgid "IPAM object type"
+msgstr "IPAM 对象类型"
+
+msgid "Link an existing IPAM object"
+msgstr "关联现有 IPAM 对象"
+
+msgid "Create a new IPAM object"
+msgstr "新建 IPAM 对象"
+
+msgid "Update the currently linked IPAM object"
+msgstr "更新当前关联的 IPAM 对象"
+
+msgid "Existing IPAM object"
+msgstr "现有 IPAM 对象"
+
+msgid "Create or update IPAM object"
+msgstr "新建或更新 IPAM 对象"
+
+msgid "Prefix value"
+msgstr "前缀值"
+
+msgid "IP address value"
+msgstr "IP 地址值"
+
+msgid "Range start"
+msgstr "范围起始地址"
+
+msgid "Range end"
+msgstr "范围结束地址"
+
+msgid "VRF"
+msgstr "VRF"
+
+msgid "Select exactly one existing Prefix, IP address, or IP range."
+msgstr "必须且只能选择一个现有前缀、IP 地址或 IP 范围。"
+
+msgid "Object type does not match the selected IPAM object."
+msgstr "对象类型与所选 IPAM 对象不匹配。"
+
+msgid "Change the association instead of changing an object's type."
+msgstr "请更改关联对象，而不是修改对象类型。"
+
+msgid "There is no linked IPAM object to update."
+msgstr "没有可更新的已关联 IPAM 对象。"
+
+msgid "You do not have permission to modify this IPAM object."
+msgstr "您没有修改此 IPAM 对象的权限。"
+
+msgid "You do not have permission to create this IPAM object type."
+msgstr "您没有创建此类 IPAM 对象的权限。"
+
+msgid "This field is required."
+msgstr "此字段为必填项。"
+
+msgid "An access policy with this name already exists."
+msgstr "已存在同名的访问关系。"
+
+msgid "Source and target systems must be different."
+msgstr "源业务系统和目标业务系统不能相同。"
+
+msgid "Valid until must be later than valid from."
+msgstr "失效时间必须晚于生效时间。"
+
+msgid "Use ANY or a port range between 1 and 65535."
+msgstr "请选择任意端口，或填写 1 至 65535 之间的端口范围。"
+
+msgid "ANY services must not specify ports."
+msgstr "任意端口服务不能再指定端口。"
+
+msgid "A non-ANY service requires both port values."
+msgstr "非任意端口服务必须同时填写起始和结束端口。"
+
+msgid "Ports must form a closed range between 1 and 65535."
+msgstr "端口必须构成 1 至 65535 之间的闭区间。"
+
+msgid "Results"
+msgstr "展示"
+
+msgid "Filters"
+msgstr "筛选"
+
+msgid "Search"
+msgstr "应用筛选"
+
+msgid "Reset"
+msgstr "重置"
+
+msgctxt "access relations standard field"
+msgid "Tags"
+msgstr "标签"
+
+msgctxt "access relations standard field"
+msgid "Owner group"
+msgstr "负责人组"
+
+msgctxt "access relations standard field"
+msgid "Owner"
+msgstr "负责人"
+
+msgctxt "access relations standard field"
+msgid "Comments"
+msgstr "备注"
+
+msgctxt "access relations standard field"
+msgid "Changelog message"
+msgstr "变更日志说明"
+
+msgctxt "access relations standard field"
+msgid "Saved Filter"
+msgstr "已保存的筛选"
