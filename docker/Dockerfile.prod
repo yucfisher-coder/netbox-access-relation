@@ -1,0 +1,26 @@
+ARG NETBOX_IMAGE=docker.io/netboxcommunity/netbox:v4.7.0-5.1.1@sha256:1685e91c61bb4050089db2bb1603718820ae3ce0b266d4d069ff7c682f5d9c58
+
+FROM python:3.12-slim AS plugin-builder
+WORKDIR /build
+COPY plugins/netbox_access_relations/ ./
+COPY locks/production-requirements.txt /tmp/production-requirements.txt
+RUN python -m pip wheel --no-deps --wheel-dir /wheelhouse . \
+    && python -m pip wheel --no-deps --wheel-dir /wheelhouse --requirement /tmp/production-requirements.txt
+
+FROM scratch AS wheel
+COPY --from=plugin-builder /wheelhouse/ /
+
+FROM ${NETBOX_IMAGE} AS runtime
+USER root
+COPY --from=plugin-builder /wheelhouse/ /tmp/wheelhouse/
+COPY config/plugins.py /etc/netbox/config/plugins.py
+RUN /usr/local/bin/uv pip install \
+      --python /opt/netbox/venv/bin/python \
+      --no-deps \
+      --offline \
+      /tmp/wheelhouse/et_xmlfile-*.whl \
+      /tmp/wheelhouse/openpyxl-*.whl \
+      /tmp/wheelhouse/netbox_access_relations-1.0.3-py3-none-any.whl \
+    && rm -rf /tmp/wheelhouse
+USER netbox
+WORKDIR /opt/netbox/netbox
