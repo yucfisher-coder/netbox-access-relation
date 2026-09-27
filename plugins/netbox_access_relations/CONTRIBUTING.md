@@ -13,9 +13,9 @@ Thank you for helping improve NetBox Access Relations.
 
 ## Development setup
 
-This plugin is developed in the parent repository's NetBox Docker environment.
-Initialize the environment and start the development stack from the repository
-root:
+This plugin is developed in the repository's NetBox Docker environment
+(https://github.com/yucfisher-coder/netbox-access-relation). Initialize the
+environment and start the development stack from the repository root:
 
 ```shell
 scripts/init-env
@@ -59,7 +59,7 @@ user-visible changes.
 
 1. Update the version in `pyproject.toml` and `netbox_access_relations/__init__.py`.
 2. Update `CHANGELOG.md` and `COMPATIBILITY.md`.
-3. Run `scripts/verify` from the parent repository.
+3. Run `scripts/verify` from the repository root.
 4. Build both a wheel and source distribution in a clean environment.
 5. Inspect the archives for templates, translations, documentation, and the
    license; then install the wheel into a clean compatible NetBox environment.

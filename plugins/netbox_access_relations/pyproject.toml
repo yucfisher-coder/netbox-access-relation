@@ -30,6 +30,11 @@ dependencies = [
   "openpyxl>=3.1,<4",
 ]
 
+[project.urls]
+Homepage = "https://github.com/yucfisher-coder/netbox-access-relation"
+Repository = "https://github.com/yucfisher-coder/netbox-access-relation"
+Issues = "https://github.com/yucfisher-coder/netbox-access-relation/issues"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["netbox_access_relations*"]

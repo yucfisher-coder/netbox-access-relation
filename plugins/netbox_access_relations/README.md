@@ -115,8 +115,8 @@ strings must use Django translation functions or `{% translate %}` tags.
 
 ## Support and security
 
-Use the source repository's issue tracker for reproducible defects and feature
-requests. Do not disclose credentials, production data, or security-sensitive
+Use the [GitHub issue tracker](https://github.com/yucfisher-coder/netbox-access-relation/issues)
+for reproducible defects and feature requests. Do not disclose credentials, production data, or security-sensitive
 details in public reports. Until a private security contact is published,
 report suspected vulnerabilities privately to the package distributor or the
 maintainer from whom the release was obtained. See
