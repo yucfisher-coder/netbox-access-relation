@@ -1,0 +1,122 @@
+# 生产环境 —— 在项目根目录执行:
+#   docker volume create netbox-access-relations-prod-postgres18-v1
+#   docker volume create netbox-access-relations-prod-media-v1
+#   docker volume create netbox-access-relations-prod-redis-v1
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+#
+# 需要先: 复制 .env.production.example 为 .env.production 并填入真实密钥,
+#         且本地已构建/加载镜像 netbox-access-relations:1.0.3。
+
+name: netbox-access-relations-prod
+
+x-netbox: &netbox
+  image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.0.3}
+  pull_policy: never
+  env_file:
+    - .env.production
+  environment:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_SSLMODE: ${DB_SSLMODE:-prefer}
+    REDIS_HOST: redis
+    REDIS_CACHE_HOST: redis-cache
+    DEBUG: "false"
+    DEVELOPER: "false"
+  volumes:
+    - netbox-media-v1:/opt/netbox/netbox/media:rw
+
+services:
+  media-init:
+    image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.0.3}
+    pull_policy: never
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R 999:0 /opt/netbox/netbox/media && chmod 0775 /opt/netbox/netbox/media"]
+    volumes:
+      - netbox-media-v1:/opt/netbox/netbox/media:rw
+    restart: "no"
+
+  postgres:
+    image: docker.io/library/postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env.production}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env.production}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -t 2 -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      start_period: 10s
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - postgres18-data-v1:/var/lib/postgresql
+    restart: unless-stopped
+
+  redis:
+    image: &redis-image docker.io/library/redis:7.4.11-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    env_file:
+      - .env.production
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck: &redis-healthcheck
+      test: ["CMD-SHELL", "test \"$$(redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping)\" = PONG"]
+      start_period: 5s
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis-data-v1:/data
+    restart: unless-stopped
+
+  redis-cache:
+    image: *redis-image
+    env_file:
+      - .env.production
+    environment:
+      REDIS_PASSWORD: ${REDIS_CACHE_PASSWORD:?Set REDIS_CACHE_PASSWORD in .env.production}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck: *redis-healthcheck
+    tmpfs:
+      - /data
+    restart: unless-stopped
+
+  netbox:
+    <<: *netbox
+    depends_on:
+      media-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NETBOX_HTTP_PORT:-8000}:8080"
+    healthcheck:
+      test: ["CMD", "/opt/netbox/health.sh"]
+      start_period: 60s
+      interval: 10s
+      timeout: 3s
+      retries: 18
+    restart: unless-stopped
+
+  worker:
+    <<: *netbox
+    depends_on:
+      netbox:
+        condition: service_healthy
+    command: ["/opt/netbox/venv/bin/python", "/opt/netbox/netbox/manage.py", "rqworker"]
+    restart: unless-stopped
+
+volumes:
+  postgres18-data-v1:
+    external: true
+    name: ${POSTGRES_VOLUME_NAME:-netbox-access-relations-prod-postgres18-v1}
+  netbox-media-v1:
+    external: true
+    name: ${MEDIA_VOLUME_NAME:-netbox-access-relations-prod-media-v1}
+  redis-data-v1:
+    external: true
+    name: ${REDIS_VOLUME_NAME:-netbox-access-relations-prod-redis-v1}

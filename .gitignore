@@ -1,0 +1,23 @@
+# Runtime secrets and private data
+.env
+.env.*
+!.env.example
+!.env.production.example
+.secrets/
+*.sql
+*.sql.gz
+backups/
+private-data/
+data/
+*.xlsx
+!tests/fixtures/*.xlsx
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+.coverage
+coverage.xml
+.DS_Store

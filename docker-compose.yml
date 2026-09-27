@@ -1,0 +1,118 @@
+# 默认开发环境 —— 直接在项目根目录执行:
+#   docker compose up -d          构建并启动全部服务
+#   docker compose ps             查看状态
+#   docker compose logs -f        查看日志
+#   docker compose down           停止并移除容器(保留数据卷)
+#
+# 环境变量从同目录的 .env 自动加载(docker compose 会自动读取 .env)。
+# 首次使用请先复制 .env.example 为 .env 并填入密钥,或运行 .\deploy.ps1 init-env。
+
+name: netbox-access-relations-dev
+
+x-netbox: &netbox
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.dev
+    args:
+      NETBOX_IMAGE: ${NETBOX_BASE_IMAGE:-docker.io/netboxcommunity/netbox:v4.7.0-5.1.1@sha256:1685e91c61bb4050089db2bb1603718820ae3ce0b266d4d069ff7c682f5d9c58}
+  image: netbox-access-relations-dev:local
+  user: "netbox:root"
+  env_file:
+    - .env
+  environment:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_SSLMODE: disable
+    REDIS_HOST: redis
+    REDIS_CACHE_HOST: redis-cache
+    DEBUG: "true"
+    DEVELOPER: "true"
+  volumes:
+    - ./plugins/netbox_access_relations:/plugins/netbox_access_relations:rw
+    - ./config/plugins.py:/etc/netbox/config/plugins.py:ro
+    - media:/opt/netbox/netbox/media:rw
+  entrypoint:
+    - /opt/netbox/dev-entrypoint.sh
+
+services:
+  postgres:
+    image: docker.io/library/postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -t 2 -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      start_period: 10s
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  redis:
+    image: &redis-image docker.io/library/redis:7.4.11-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    env_file:
+      - .env
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck: &redis-healthcheck
+      test: ["CMD-SHELL", "test \"$$(redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping)\" = PONG"]
+      start_period: 5s
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis-data:/data
+
+  redis-cache:
+    image: *redis-image
+    env_file:
+      - .env
+    environment:
+      REDIS_PASSWORD: ${REDIS_CACHE_PASSWORD:?Set REDIS_CACHE_PASSWORD in .env}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck: *redis-healthcheck
+    tmpfs:
+      - /data
+
+  netbox:
+    <<: *netbox
+    command:
+      - /opt/netbox/venv/bin/python
+      - /opt/netbox/netbox/manage.py
+      - runserver
+      - "0.0.0.0:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NETBOX_HTTP_PORT:-8000}:8080"
+      - "127.0.0.1:5678:5678"
+    healthcheck:
+      test: ["CMD", "/opt/netbox/health.sh"]
+      start_period: 30s
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    <<: *netbox
+    command:
+      - /opt/netbox/venv/bin/python
+      - /opt/netbox/netbox/manage.py
+      - rqworker
+    depends_on:
+      netbox:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  media:
+  postgres-data:
+  redis-data:

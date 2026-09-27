@@ -1,0 +1,13 @@
+.git
+.env*
+.secrets
+backups
+private-data
+dist
+*.sql
+*.sql.gz
+*.xlsx
+plugins/**/build
+plugins/**/*.egg-info
+**/__pycache__
+**/*.pyc
