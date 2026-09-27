@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+release_version="1.0.3"
+image_name="${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:${release_version}}"
+package_dir="${repo_root}/dist/offline-release-${release_version}"
+postgres_image="docker.io/library/postgres:18.6-alpine"
+redis_image="docker.io/library/redis:7.4.11-alpine"
+
+for image in "${image_name}" "${postgres_image}" "${redis_image}"; do
+  if ! docker image inspect "${image}" >/dev/null 2>&1; then
+    echo "Missing local image: ${image}. Run scripts/release-build and load verified service images first." >&2
+    exit 1
+  fi
+done
+
+if [[ -e "${package_dir}" ]]; then
+  echo "Refusing to overwrite existing package directory: ${package_dir}" >&2
+  exit 1
+fi
+mkdir -p "${package_dir}/compose" "${package_dir}/scripts" "${package_dir}/docs" "${package_dir}/locks"
+cp "${repo_root}/compose/production.yml" "${package_dir}/compose/"
+cp "${repo_root}/.env.production.example" "${package_dir}/"
+cp "${repo_root}/scripts/_common.sh" "${repo_root}/scripts/production" \
+  "${repo_root}/scripts/backup-production" "${repo_root}/scripts/restore-production" \
+  "${package_dir}/scripts/"
+cp "${repo_root}/docs/production-deployment.md" "${package_dir}/docs/"
+cp "${repo_root}/docs/releases/${release_version}.md" "${package_dir}/docs/"
+cp "${repo_root}/locks/images.md" "${package_dir}/locks/"
+docker image save --output "${package_dir}/images.tar" \
+  "${image_name}" "${postgres_image}" "${redis_image}"
+(cd "${package_dir}" && sha256sum images.tar > SHA256SUMS)
+
+echo "Created offline release package: ${package_dir}"

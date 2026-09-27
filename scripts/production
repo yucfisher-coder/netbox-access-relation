@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+command_name="${1:-help}"
+shift || true
+
+case "${command_name}" in
+  init-volumes)
+    production_env="${PRODUCTION_ENV_FILE:-${repo_root}/.env.production}"
+    if [[ ! -f "${production_env}" ]]; then
+      echo "Missing ${production_env}." >&2
+      exit 1
+    fi
+    source "${production_env}"
+    docker volume create "${POSTGRES_VOLUME_NAME:-netbox-access-relations-prod-postgres18-v1}"
+    docker volume create "${MEDIA_VOLUME_NAME:-netbox-access-relations-prod-media-v1}"
+    docker volume create "${REDIS_VOLUME_NAME:-netbox-access-relations-prod-redis-v1}"
+    ;;
+  config)
+    production_compose_cmd config "$@"
+    ;;
+  up)
+    production_compose_cmd up --detach "$@"
+    ;;
+  stop)
+    production_compose_cmd stop "$@"
+    ;;
+  status)
+    production_compose_cmd ps "$@"
+    ;;
+  logs)
+    production_compose_cmd logs --follow "$@"
+    ;;
+  help|*)
+    echo "Usage: scripts/production {init-volumes|config|up|stop|status|logs}"
+    echo "This wrapper never removes production volumes."
+    ;;
+esac

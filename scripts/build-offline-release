@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+release_version="1.0.3"
+image_name="${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:${release_version}}"
+base_image="netboxcommunity/netbox:v4.7.0-5.1.1"
+python_builder_image="${PYTHON_BUILD_IMAGE:-python:3.12-slim}"
+target_arch="${TARGET_ARCH:-amd64}"
+
+case "$(uname -m)" in
+  x86_64) host_arch=amd64 ;;
+  aarch64|arm64) host_arch=arm64 ;;
+  *) host_arch=unknown ;;
+esac
+if [[ "${host_arch}" != "${target_arch}" ]]; then
+  echo "This source package targets ${target_arch}, but the host architecture is ${host_arch}." >&2
+  exit 1
+fi
+
+for required_path in offline-wheelhouse docker/Dockerfile.offline.prod; do
+  test -e "${repo_root}/${required_path}" || {
+    echo "Missing ${required_path}; use the complete offline source package." >&2
+    exit 1
+  }
+done
+for image in "${base_image}" "${python_builder_image}"; do
+  docker image inspect "${image}" >/dev/null 2>&1 || {
+    echo "Missing local build image: ${image}. Import images.tar before building." >&2
+    exit 1
+  }
+  image_arch="$(docker image inspect "${image}" --format '{{.Architecture}}')"
+  if [[ "${image_arch}" != "${target_arch}" ]]; then
+    echo "Image ${image} is ${image_arch}; expected ${target_arch}." >&2
+    exit 1
+  fi
+done
+
+docker build --network=none \
+  --file "${repo_root}/docker/Dockerfile.offline.prod" \
+  --build-arg "NETBOX_IMAGE=${base_image}" \
+  --build-arg "PYTHON_BUILD_IMAGE=${python_builder_image}" \
+  --tag "${image_name}" \
+  "${repo_root}"
+
+docker image inspect "${image_name}" --format '{{.Id}}' > "${repo_root}/IMAGE_ID"
+echo "Built ${image_name} without network access."

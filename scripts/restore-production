@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+backup_dir="${1:-}"
+if [[ -z "${backup_dir}" || ! -d "${backup_dir}" ]]; then
+  echo "Usage: RESTORE_CONFIRM=restore-production-v1 scripts/restore-production /absolute/backup-directory" >&2
+  exit 2
+fi
+backup_dir="$(cd "${backup_dir}" && pwd)"
+if [[ "${RESTORE_CONFIRM:-}" != "restore-production-v1" ]]; then
+  echo "Restore replaces current database objects and media files; set RESTORE_CONFIRM=restore-production-v1." >&2
+  exit 2
+fi
+for file_name in database.dump media.tar.gz SHA256SUMS; do
+  test -f "${backup_dir}/${file_name}" || { echo "Missing ${backup_dir}/${file_name}" >&2; exit 2; }
+done
+(cd "${backup_dir}" && sha256sum --check SHA256SUMS)
+
+production_compose_cmd stop worker netbox
+production_compose_cmd exec -T postgres sh -c 'cat > /tmp/netbox-restore.dump' \
+  < "${backup_dir}/database.dump"
+production_compose_cmd exec -T postgres sh -ec '
+  dropdb --if-exists --force --username="$POSTGRES_USER" "$POSTGRES_DB"
+  createdb --username="$POSTGRES_USER" "$POSTGRES_DB"
+  psql --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" -c "CREATE EXTENSION IF NOT EXISTS ltree"
+  pg_restore --exit-on-error --no-owner --no-acl --section=pre-data \
+    --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --exit-on-error --no-owner --no-acl --section=data \
+    --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --no-owner --no-acl --section=post-data --file=- /tmp/netbox-restore.dump \
+    | sed "s/SELECT pg_catalog.set_config('\''search_path'\'', '\'''\'', false);/SELECT pg_catalog.set_config('\''search_path'\'', '\''public, pg_catalog'\'', false);/" \
+    | psql --quiet --set=ON_ERROR_STOP=1 --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"
+  rm /tmp/netbox-restore.dump
+'
+production_compose_cmd run --rm --no-deps -T netbox sh -c \
+  'find /opt/netbox/netbox/media -mindepth 1 -delete; tar -C /opt/netbox/netbox/media -xzf -' \
+  < "${backup_dir}/media.tar.gz"
+production_compose_cmd up --detach netbox worker
+
+echo "Restore completed from ${backup_dir}. Run the release acceptance checks now."

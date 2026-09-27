@@ -1,0 +1,44 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+command_name="${1:-help}"
+shift || true
+
+case "${command_name}" in
+  up)
+    dev_compose_cmd up --build --detach "$@"
+    ;;
+  stop)
+    dev_compose_cmd stop "$@"
+    ;;
+  down)
+    dev_compose_cmd down --remove-orphans "$@"
+    ;;
+  logs)
+    dev_compose_cmd logs --follow "$@"
+    ;;
+  restart-worker)
+    dev_compose_cmd restart worker
+    ;;
+  shell)
+    dev_compose_cmd exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py shell "$@"
+    ;;
+  debug)
+    dev_compose_cmd run --rm --service-ports --entrypoint /opt/netbox/dev-entrypoint.sh netbox \
+      /opt/netbox/venv/bin/python -m debugpy --listen 0.0.0.0:5678 --wait-for-client \
+      /opt/netbox/netbox/manage.py runserver --noreload 0.0.0.0:8080
+    ;;
+  makemigrations)
+    dev_compose_cmd exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py \
+      makemigrations netbox_access_relations "$@"
+    ;;
+  migrate)
+    dev_compose_cmd run --rm init /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate "$@"
+    ;;
+  help|*)
+    echo "Usage: scripts/dev {up|stop|down|logs|restart-worker|shell|debug|makemigrations|migrate}"
+    echo "down preserves named volumes; this wrapper has no down -v command."
+    ;;
+esac

@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.3). Also accepts a leading 'v'."
+        required: false
+        default: "1.0.3"
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/netbox-access-relations
+
+jobs:
+  release:
+    name: Build & release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version
+        id: version
+        run: |
+          raw="${{ github.event.inputs.version || github.ref_name }}"
+          version="${raw#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Releasing version: ${version}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build plugin wheel
+        working-directory: plugins/netbox_access_relations
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+          mkdir -p "${GITHUB_WORKSPACE}/release"
+          cp dist/*.whl "${GITHUB_WORKSPACE}/release/"
+
+      - name: Generate checksums
+        working-directory: release
+        run: sha256sum *.whl > SHA256SUMS
+
+      - name: Build production image
+        run: |
+          docker build \
+            --file docker/Dockerfile.prod \
+            --target runtime \
+            --tag "netbox-access-relations:${{ steps.version.outputs.version }}" \
+            .
+
+      - name: Push image to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRY}" -u "${{ github.actor }}" --password-stdin
+          tag="${REGISTRY}/${IMAGE_NAME}:${{ steps.version.outputs.version }}"
+          docker tag "netbox-access-relations:${{ steps.version.outputs.version }}" "${tag}"
+          docker push "${tag}"
+          docker image inspect "${tag}" --format '{{.Id}}' > release/IMAGE_ID
+          echo "Pushed ${tag}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release/*.whl
+            release/SHA256SUMS
+            release/IMAGE_ID

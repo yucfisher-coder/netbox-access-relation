@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+target="${repo_root}/.env"
+
+if [[ -e "${target}" ]]; then
+  echo "Refusing to overwrite existing ${target}" >&2
+  exit 1
+fi
+
+umask 077
+{
+  printf '%s\n' 'NETBOX_HTTP_PORT=8000'
+  printf '%s\n' 'ALLOWED_HOSTS=localhost 127.0.0.1'
+  printf '%s\n' 'DB_NAME=netbox' 'DB_USER=netbox'
+  printf 'DB_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+  printf 'REDIS_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+  printf 'REDIS_CACHE_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+  printf 'SECRET_KEY=%s\n' "$(openssl rand -hex 48)"
+  printf 'API_TOKEN_PEPPER_1=%s\n' "$(openssl rand -hex 48)"
+  printf '%s\n' 'SKIP_SUPERUSER=true' 'CENSUS_REPORTING_ENABLED=false' 'RELEASE_CHECK_URL='
+} >"${target}"
+
+echo "Created ${target} with mode 0600."

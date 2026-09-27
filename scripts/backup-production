@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+backup_root="${1:-${repo_root}/backups}"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+backup_dir="${backup_root%/}/${timestamp}"
+mkdir -p "${backup_dir}"
+
+production_compose_cmd exec -T postgres sh -c \
+  'exec pg_dump --format=custom --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
+  > "${backup_dir}/database.dump"
+production_compose_cmd exec -T postgres sh -c \
+  'exec pg_dump --format=plain --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
+  > "${backup_dir}/database.sql"
+production_compose_cmd exec -T netbox tar -C /opt/netbox/netbox/media -czf - . \
+  > "${backup_dir}/media.tar.gz"
+
+(cd "${backup_dir}" && sha256sum database.dump database.sql media.tar.gz > SHA256SUMS)
+echo "Backup written to ${backup_dir}."

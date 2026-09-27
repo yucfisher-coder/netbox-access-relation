@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+release_version="1.0.3"
+image_name="${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:${release_version}}"
+base_image="netboxcommunity/netbox:v4.7.0-5.1.1"
+base_arch="$(docker image inspect "${base_image}" --format '{{.Architecture}}' 2>/dev/null || true)"
+case "${base_arch}" in
+  amd64) locked_manifest="sha256:fa7ffa268c39fb258bed80bd256360a525f1a129ee4ee06298f10d6708578eba" ;;
+  arm64) locked_manifest="sha256:801563a44551e2b05fc6985fc378068a0a4cd1087947bc0ecea073dd0928a3c6" ;;
+  *) echo "Unsupported or missing local base image architecture: ${base_arch:-unknown}." >&2; exit 1 ;;
+esac
+dist_dir="${repo_root}/dist"
+
+if ! docker image inspect "${base_image}" --format '{{join .RepoDigests "\n"}}' \
+  | grep -Fq "@${locked_manifest}"; then
+  echo "Local ${base_image} does not match the locked ${base_arch} manifest ${locked_manifest}." >&2
+  echo "Load the verified base image before running an offline release build." >&2
+  exit 1
+fi
+
+mkdir -p "${dist_dir}"
+docker build \
+  --file "${repo_root}/docker/Dockerfile.prod" \
+  --target wheel \
+  --output "type=local,dest=${dist_dir}" \
+  "${repo_root}"
+docker build \
+  --file "${repo_root}/docker/Dockerfile.prod" \
+  --target runtime \
+  --build-arg "NETBOX_IMAGE=${base_image}" \
+  --tag "${image_name}" \
+  "${repo_root}"
+
+sha256sum "${dist_dir}"/*.whl > "${dist_dir}/SHA256SUMS"
+docker image inspect "${image_name}" --format '{{.Id}}' > "${dist_dir}/IMAGE_ID"
+
+echo "Built ${image_name} and wheel artifacts in ${dist_dir}."

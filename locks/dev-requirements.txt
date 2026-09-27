@@ -1,0 +1,4 @@
+# Development-only dependency. The exact version is installed into the image,
+# never downloaded by a running container.
+debugpy==1.8.17
+openpyxl==3.1.5

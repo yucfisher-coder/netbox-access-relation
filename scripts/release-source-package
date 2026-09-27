@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+release_version="1.0.3"
+package_dir="${repo_root}/dist/offline-source-release-${release_version}"
+base_image="netboxcommunity/netbox:v4.7.0-5.1.1"
+python_builder_image="${PYTHON_BUILD_IMAGE:-python:3.12-slim}"
+postgres_image="docker.io/library/postgres:18.6-alpine"
+redis_image="docker.io/library/redis:7.4.11-alpine"
+target_arch="${TARGET_ARCH:-amd64}"
+
+case "$(uname -m)" in
+  x86_64) host_arch=amd64 ;;
+  aarch64|arm64) host_arch=arm64 ;;
+  *) host_arch=unknown ;;
+esac
+if [[ "${host_arch}" != "${target_arch}" ]]; then
+  echo "Source packages must be made natively: host is ${host_arch}, requested ${target_arch}." >&2
+  exit 1
+fi
+
+if [[ -e "${package_dir}" ]]; then
+  echo "Refusing to overwrite existing package directory: ${package_dir}" >&2
+  exit 1
+fi
+for image in "${base_image}" "${python_builder_image}" "${postgres_image}" "${redis_image}"; do
+  docker image inspect "${image}" >/dev/null 2>&1 || {
+    echo "Missing local image: ${image}. Load the verified image before packaging." >&2
+    exit 1
+  }
+  image_arch="$(docker image inspect "${image}" --format '{{.Architecture}}')"
+  if [[ "${image_arch}" != "${target_arch}" ]]; then
+    echo "Image ${image} is ${image_arch}; expected ${target_arch}." >&2
+    exit 1
+  fi
+done
+
+mkdir -p "${package_dir}/docker" "${package_dir}/plugins" "${package_dir}/config" \
+  "${package_dir}/locks" "${package_dir}/compose" "${package_dir}/scripts" \
+  "${package_dir}/docs" "${package_dir}/offline-wheelhouse"
+cp "${repo_root}/docker/Dockerfile.offline.prod" "${package_dir}/docker/"
+cp -a "${repo_root}/plugins/netbox_access_relations" "${package_dir}/plugins/"
+cp "${repo_root}/config/plugins.py" "${package_dir}/config/"
+cp "${repo_root}/locks/production-requirements.txt" "${repo_root}/locks/images.md" "${package_dir}/locks/"
+cp "${repo_root}/compose/production.yml" "${package_dir}/compose/"
+cp "${repo_root}/.env.production.example" "${package_dir}/"
+cp "${repo_root}/scripts/_common.sh" "${repo_root}/scripts/build-offline-release" \
+  "${repo_root}/scripts/production" "${repo_root}/scripts/backup-production" \
+  "${repo_root}/scripts/restore-production" "${package_dir}/scripts/"
+cp "${repo_root}/docs/production-deployment.md" "${repo_root}/docs/releases/${release_version}.md" \
+  "${package_dir}/docs/"
+python -m pip download --only-binary=:all: --dest "${package_dir}/offline-wheelhouse" \
+  'setuptools==80.9.0' --requirement "${repo_root}/locks/production-requirements.txt"
+docker image save --output "${package_dir}/images.tar" \
+  "${base_image}" "${python_builder_image}" "${postgres_image}" "${redis_image}"
+(cd "${package_dir}" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+echo "Created offline source-build package: ${package_dir}"
