@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 1.0.3). Also accepts a leading 'v'."
+        description: "Release version (e.g. 1.1.0). Also accepts a leading 'v'."
         required: false
-        default: "1.0.3"
+        default: "1.1.0"
 
 permissions:
   contents: write

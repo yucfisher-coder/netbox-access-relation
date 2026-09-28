@@ -32,7 +32,7 @@ NetBox deployment, add the released package to
 wheel can also be installed directly:
 
 ```shell
-/opt/netbox/venv/bin/pip install netbox_access_relations-1.0.3-py3-none-any.whl
+/opt/netbox/venv/bin/pip install netbox_access_relations-1.1.0-py3-none-any.whl
 ```
 
 Enable the plugin in NetBox's `configuration.py`:

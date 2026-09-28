@@ -5,6 +5,22 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-28
+
+### Changed
+
+- 合并 Compose 定义：删除 `compose/` 目录，以根目录 `docker-compose.yml` / `docker-compose.prod.yml` 为唯一来源；bash 脚本、PowerShell 封装与 CI 同步指向根目录文件。
+- 整理文档体系：将备份/恢复/迁移相关内容合并为单一运维手册 `production-deployment.md`，新增 `code-structure.md`（代码结构）与 `development.md`（本地开发指南）。
+
+### Removed
+
+- 删除无人引用的 `config/plugins-disabled.py`。
+- 精简 `locks/images.md` 中过时的本地镜像 ID 与失败构建记录。
+
+### Notes
+
+- 本版本不包含数据库迁移，数据结构基线仍为 `0001`～`0005`，与 `1.0.0` 兼容。
+
 ## [1.0.3] - 2026-09-26
 
 ### Changed
