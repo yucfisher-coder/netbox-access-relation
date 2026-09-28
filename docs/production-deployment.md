@@ -72,8 +72,8 @@ scripts/production init-volumes
 scripts/production config --quiet
 scripts/production up
 scripts/production status
-docker compose --env-file .env.production -f compose/production.yml ps
-docker compose --env-file .env.production -f compose/production.yml exec -T netbox \
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T netbox \
   /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
 ```
 
@@ -98,27 +98,143 @@ PostgreSQL 主版本升级必须创建新代际卷，禁止把 PostgreSQL 18 数
 
 本次 `1.0.3` 没有迁移，且与 `1.0.0` 结构基线兼容。应用异常时只可切回与当前 schema 兼容的旧镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。
 
-## 备份
+## 备份与恢复
 
-迁移与恢复保留 PostgreSQL 的 custom-format dump、供人工查看的纯文本 SQL 导出，以及 NetBox `media` 附件归档。Redis 是缓存和任务队列，不备份、不迁移。手工 `pg_dump`、media 归档、校验和、恢复以及本地从零验证命令见 [迁移用的手工备份、恢复与本地重建](manual-backup-reset-deploy.md)。备份目录必须复制到独立存储。
+只备份两项不可替代的数据：PostgreSQL 数据库（custom-format dump 用于可靠恢复，纯文本 SQL 用于人工审阅）
+与 NetBox `media` 附件。Redis 是缓存和任务队列，不备份、不迁移；镜像、Compose 文件和 `.env.production`
+属于部署配置，应从经过验证的发布介质或版本控制重新取得，不放入数据备份。这与 NetBox 官方的
+[复制实例说明](https://netbox.readthedocs.io/en/stable/administration/replicating-netbox/)一致：
+导出 PostgreSQL，再复制 media 文件。
 
-## 隔离恢复演练
+以下命令在项目（或离线发布包）根目录执行，假定 `.env.production` 已配置。示例把备份放在
+`backups/<时间戳>` 目录；该目录被 Git 忽略，迁移前仍须整体复制到独立存储。一个可用的备份目录只含：
 
-恢复会替换目标环境的数据库对象和 media 文件，只能指向隔离的恢复环境或经批准的生产恢复窗口。
-在明确核对目标 Compose 项目和备份目录后运行：
-
-```bash
-RESTORE_CONFIRM=restore-production-v1 scripts/restore-production /绝对/备份目录
+```text
+<时间戳>/
+├── database.dump
+├── database.sql
+├── media.tar.gz
+└── SHA256SUMS
 ```
 
-脚本先验证校验和，再停止应用进程、强制断开并重建目标数据库、恢复数据库与 media，最后重启应用。
-因此目标数据库中的现有内容会被完整替换，不会与备份对象混合。完成后必须执行登录、迁移、
+### 使用封装脚本备份与恢复
+
+封装脚本是推荐路径，已内置校验和、`ltree` 扩展与 `search_path` 兼容处理：
+
+```bash
+# 备份：在源主机生成时间戳备份目录
+scripts/backup-production /srv/netbox-backups
+
+# 恢复：完整替换目标环境的数据库与 media（仅限隔离环境或批准的生产恢复窗口）
+RESTORE_CONFIRM=restore-production-v1 scripts/restore-production /srv/netbox-backups/<时间戳>
+```
+
+`restore-production` 先验证校验和，再停止应用进程、强制断开并重建目标数据库、恢复数据库与 media，
+最后重启应用；目标库现有内容会被完整替换，不会与备份对象混合。完成后必须执行登录、`migrate --check`、
 对象计数、核心查询、附件访问和后台任务验收。升级发布前应先用最近生产备份完成一次隔离恢复。
 
-NetBox 4.7.0 的层级对象使用 PostgreSQL `ltree`。该固定版本生成的 post-data dump 在空
-`search_path` 下重建触发器时会命中 PostgreSQL 的 `ltree` 运算符解析问题；恢复脚本因此把备份
-分为 pre-data、data、post-data 三段，并只在 post-data 会话中显式设置 `public, pg_catalog`。
-该兼容处理必须随 NetBox 升级重新验证，不能静默删除。
+### 手工备份
+
+不依赖封装脚本时，先暂停 NetBox Web 和 worker（数据库保持运行）以避免导出期间写入：
+
+```bash
+mkdir -p backups/20260926
+docker compose --env-file .env.production -f docker-compose.prod.yml stop netbox worker
+
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T postgres sh -c \
+  'exec pg_dump --format=custom --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
+  > backups/20260926/database.dump
+
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T postgres sh -c \
+  'exec pg_dump --format=plain --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
+  > backups/20260926/database.sql
+
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps --entrypoint tar netbox \
+  -C /opt/netbox/netbox/media -czf - . \
+  > backups/20260926/media.tar.gz
+
+(cd backups/20260926 && shasum -a 256 database.dump database.sql media.tar.gz > SHA256SUMS)
+(cd backups/20260926 && shasum -a 256 -c SHA256SUMS)
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+```
+
+命令中的 `$POSTGRES_DB`、`$POSTGRES_USER` 由 PostgreSQL 容器从 `.env.production` 自动读取，无需填写。
+生成校验和后将整个时间戳目录复制到独立存储。
+
+### 手工恢复（新环境）
+
+先在目标主机用相同（或已验证兼容）的 NetBox 与 PostgreSQL 版本部署并启动空实例，确认
+`.env.production` 的密码与 `SECRET_KEY` 已设置、`postgres` 健康，再复制备份目录到目标主机。
+恢复会替换目标环境现有的数据库与附件。
+
+```bash
+(cd backups/20260926 && shasum -a 256 -c SHA256SUMS)
+docker compose --env-file .env.production -f docker-compose.prod.yml stop netbox worker
+docker compose --env-file .env.production -f docker-compose.prod.yml cp backups/20260926/database.dump postgres:/tmp/netbox-restore.dump
+```
+
+重建数据库并恢复 dump。`dropdb`/`createdb` 后 `ltree` 扩展会丢失，**必须在导入前手动创建**；
+最后一段为 NetBox 4.7.0 的 `ltree` 触发器保留正确的 `search_path`：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T postgres sh -ec '
+  dropdb --if-exists --force --username="$POSTGRES_USER" "$POSTGRES_DB"
+  createdb --username="$POSTGRES_USER" "$POSTGRES_DB"
+  psql --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" -c "CREATE EXTENSION IF NOT EXISTS ltree"
+  pg_restore --exit-on-error --no-owner --no-acl --section=pre-data --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --exit-on-error --no-owner --no-acl --section=data --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --no-owner --no-acl --section=post-data --file=- /tmp/netbox-restore.dump \
+    | sed "s/SELECT pg_catalog.set_config('\\''search_path'\\'', '\\'''\\'', false);/SELECT pg_catalog.set_config('\\''search_path'\\'', '\\''public, pg_catalog'\\'', false);/" \
+    | psql --quiet --set=ON_ERROR_STOP=1 --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"
+  rm /tmp/netbox-restore.dump
+'
+```
+
+清空目标 `media` 并解压备份，最后重启应用并验收：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm --no-deps -T netbox sh -c \
+  'find /opt/netbox/netbox/media -mindepth 1 -delete; tar -C /opt/netbox/netbox/media -xzf -' \
+  < backups/20260926/media.tar.gz
+
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+恢复后通过浏览器检查关键对象、附件下载与后台任务。dump 能导入、文件能解压只代表步骤完成，
+不代表业务验收完成。若只需人工核对数据，可直接查看 `database.sql`。
+
+### 从其他 NetBox 环境迁移
+
+先在隔离测试环境恢复并验证备份，再迁移生产环境。导入前必须确认原 NetBox 版本、插件版本和数据库
+迁移版本与本项目兼容；不兼容时不能直接恢复数据库，应先制定升级或数据转换方案。
+
+### 本机从零验证（清空重建）
+
+若目的是验证空数据部署而非恢复迁移数据，停止栈后删除本 Compose 引用的三个 external 卷，再重建并启动
+（若在 `.env.production` 改过卷名，替换为实际名称）：
+
+```bash
+docker volume inspect \
+  netbox-access-relations-prod-postgres18-v1 \
+  netbox-access-relations-prod-media-v1 \
+  netbox-access-relations-prod-redis-v1
+docker compose --env-file .env.production -f docker-compose.prod.yml down --remove-orphans
+docker volume rm netbox-access-relations-prod-postgres18-v1 netbox-access-relations-prod-media-v1 netbox-access-relations-prod-redis-v1
+docker volume create netbox-access-relations-prod-postgres18-v1
+docker volume create netbox-access-relations-prod-media-v1
+docker volume create netbox-access-relations-prod-redis-v1
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+```
+
+不要使用 `docker compose down -v` 或 `docker volume prune`：二者不如指定这三个卷名清晰。
+之后运行 `ps`、`migrate --check` 并登录验证。
+
+> **`ltree` 与 `search_path` 兼容说明**：NetBox 4.7.0 的层级对象使用 PostgreSQL `ltree`。该版本生成的
+> post-data dump 在空 `search_path` 下重建触发器会命中 `ltree` 运算符解析问题，因此恢复分 pre-data、
+> data、post-data 三段，并只在 post-data 会话显式设置 `public, pg_catalog`。`scripts/restore-production`
+> 已内置此处理；手工恢复须照此执行。该兼容处理必须随 NetBox 升级重新验证，不能静默删除。
 
 ## 回滚
 

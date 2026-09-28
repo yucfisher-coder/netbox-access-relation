@@ -20,8 +20,8 @@ if [[ -e "${package_dir}" ]]; then
   echo "Refusing to overwrite existing package directory: ${package_dir}" >&2
   exit 1
 fi
-mkdir -p "${package_dir}/compose" "${package_dir}/scripts" "${package_dir}/docs" "${package_dir}/locks"
-cp "${repo_root}/compose/production.yml" "${package_dir}/compose/"
+mkdir -p "${package_dir}/scripts" "${package_dir}/docs" "${package_dir}/locks"
+cp "${repo_root}/docker-compose.prod.yml" "${package_dir}/"
 cp "${repo_root}/.env.production.example" "${package_dir}/"
 cp "${repo_root}/scripts/_common.sh" "${repo_root}/scripts/production" \
   "${repo_root}/scripts/backup-production" "${repo_root}/scripts/restore-production" \

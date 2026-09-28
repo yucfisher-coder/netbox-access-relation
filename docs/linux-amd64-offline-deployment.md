@@ -3,7 +3,7 @@
 本文面向 **Linux x86_64 / amd64** 服务器的**离线生产部署**。全程不需要生产服务器访问互联网，
 所有镜像和依赖在联网构建机上预先打包。当前版本 `1.0.3`。
 
-> 如果需要从旧环境迁移数据，部署完成后参见 [AMD64 部署与数据迁移（简版）](simple-deployment-and-migration.md)。
+> 如果需要从旧环境迁移数据，部署完成后参见 [生产部署、备份、恢复与迁移](production-deployment.md)。
 > ARM64 部署请在 ARM 构建机上制作介质，流程相同但镜像架构不同。
 
 ## 一、前提条件
@@ -186,7 +186,7 @@ scripts/production logs
 确认迁移已完成：
 
 ```bash
-docker compose --env-file .env.production -f compose/production.yml exec -T netbox \
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T netbox \
   /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
 ```
 
@@ -224,7 +224,7 @@ scripts/production config
 等价的原生 `docker compose` 命令（效果相同）：
 
 ```bash
-COMPOSE="docker compose --env-file .env.production -f compose/production.yml"
+COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
 $COMPOSE ps
 $COMPOSE logs -f
 $COMPOSE stop
@@ -260,7 +260,7 @@ RESTORE_CONFIRM=restore-production-v1 \
 ```
 
 > NetBox 4.7 依赖 PostgreSQL `ltree` 扩展。`scripts/restore-production` 已自动处理重建扩展。
-> 手工恢复请参考 [迁移用的手工备份、恢复与本地重建](manual-backup-reset-deploy.md)。
+> 手工恢复命令见 [生产部署、备份、恢复与迁移](production-deployment.md) 的“手工恢复（新环境）”一节。
 
 ## 六、升级
 
@@ -275,7 +275,7 @@ RESTORE_CONFIRM=restore-production-v1 \
 ## 七、常见问题
 
 **Q: `docker compose` 提示找不到配置文件？**
-A: 必须在部署目录内执行，且使用 `-f compose/production.yml --env-file .env.production` 指定文件。`scripts/production` 封装已自动处理。
+A: 必须在部署目录内执行，且使用 `-f docker-compose.prod.yml --env-file .env.production` 指定文件。`scripts/production` 封装已自动处理。
 
 **Q: netbox 容器一直重启，日志显示数据库连接失败？**
 A: 检查 `postgres` 容器是否 healthy，`.env.production` 中 `DB_PASSWORD` 等是否与 postgres 容器初始化时一致。首次创建后修改密码不会自动生效，需重建卷。

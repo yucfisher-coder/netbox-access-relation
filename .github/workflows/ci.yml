@@ -27,17 +27,11 @@ jobs:
           cp .env.example .env
           cp .env.production.example .env.production
 
-      - name: Validate dev compose (root)
+      - name: Validate dev compose
         run: docker compose --env-file .env -f docker-compose.yml config --quiet
 
-      - name: Validate dev compose (compose/)
-        run: docker compose --env-file .env -f compose/dev.yml config --quiet
-
-      - name: Validate production compose (root)
+      - name: Validate production compose
         run: docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
-
-      - name: Validate production compose (compose/)
-        run: docker compose --env-file .env.production -f compose/production.yml config --quiet
 
   # Build the distributable plugin wheel and assert its packaged contents.
   wheel:

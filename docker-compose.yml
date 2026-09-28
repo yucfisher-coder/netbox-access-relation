@@ -77,6 +77,18 @@ services:
     tmpfs:
       - /data
 
+  init:
+    <<: *netbox
+    command: ["/bin/true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    restart: "no"
+
   netbox:
     <<: *netbox
     command:

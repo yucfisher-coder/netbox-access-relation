@@ -3,8 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${repo_root}/.env"
-dev_compose="${repo_root}/compose/dev.yml"
-production_compose="${repo_root}/compose/production.yml"
+dev_compose="${repo_root}/docker-compose.yml"
+production_compose="${repo_root}/docker-compose.prod.yml"
 
 require_env() {
   if [[ ! -f "${env_file}" ]]; then

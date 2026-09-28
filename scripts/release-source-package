@@ -38,13 +38,13 @@ for image in "${base_image}" "${python_builder_image}" "${postgres_image}" "${re
 done
 
 mkdir -p "${package_dir}/docker" "${package_dir}/plugins" "${package_dir}/config" \
-  "${package_dir}/locks" "${package_dir}/compose" "${package_dir}/scripts" \
+  "${package_dir}/locks" "${package_dir}/scripts" \
   "${package_dir}/docs" "${package_dir}/offline-wheelhouse"
 cp "${repo_root}/docker/Dockerfile.offline.prod" "${package_dir}/docker/"
 cp -a "${repo_root}/plugins/netbox_access_relations" "${package_dir}/plugins/"
 cp "${repo_root}/config/plugins.py" "${package_dir}/config/"
 cp "${repo_root}/locks/production-requirements.txt" "${repo_root}/locks/images.md" "${package_dir}/locks/"
-cp "${repo_root}/compose/production.yml" "${package_dir}/compose/"
+cp "${repo_root}/docker-compose.prod.yml" "${package_dir}/"
 cp "${repo_root}/.env.production.example" "${package_dir}/"
 cp "${repo_root}/scripts/_common.sh" "${repo_root}/scripts/build-offline-release" \
   "${repo_root}/scripts/production" "${repo_root}/scripts/backup-production" \

@@ -173,13 +173,13 @@ $env:RESTORE_CONFIRM = 'restore-production-v1'
 
 ```powershell
 # 开发环境
-docker compose --env-file .env -f compose/dev.yml up -d
-docker compose --env-file .env -f compose/dev.yml ps
-docker compose --env-file .env -f compose/dev.yml logs -f
+docker compose --env-file .env -f docker-compose.yml up -d
+docker compose --env-file .env -f docker-compose.yml ps
+docker compose --env-file .env -f docker-compose.yml logs -f
 
 # 生产环境
-docker compose --env-file .env.production -f compose/production.yml up -d
-docker compose --env-file .env.production -f compose/production.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
 ## 六、Windows 特有注意事项
@@ -207,8 +207,8 @@ docker compose --env-file .env.production -f compose/production.yml ps
 
 | Linux 脚本 | Windows 等效 | 说明 |
 |-----------|-------------|------|
-| `compose/dev.yml` | `docker-compose.yml` | **根目录默认 compose 文件**，`docker compose` 自动识别 |
-| `compose/production.yml` | `docker-compose.prod.yml` | 生产 compose，需 `-f docker-compose.prod.yml --env-file .env.production` |
+| `docker-compose.yml` | `docker-compose.yml` | **根目录默认 compose 文件**，`docker compose` 自动识别（开发环境） |
+| `docker-compose.prod.yml` | `docker-compose.prod.yml` | 生产 compose，需 `-f docker-compose.prod.yml --env-file .env.production` |
 | `scripts/init-env` | `scripts/windows/init-env.ps1` / `.\deploy.ps1 init-env` | 用 .NET RNG 替代 openssl 生成密钥 |
 | `scripts/build` | `scripts/windows/build.ps1` | 校验锁定的基础镜像 digest 后构建 |
 | `scripts/dev` | `docker compose ...`（或 `scripts/windows/dev.ps1`） | 开发环境 up/down/logs/shell 等 |
@@ -217,5 +217,5 @@ docker compose --env-file .env.production -f compose/production.yml ps
 | `scripts/restore-production` | `scripts/windows/restore.ps1` | 恢复数据库与 media |
 | — | `deploy.ps1` | 可选便捷封装（内部即调用 docker compose） |
 
-原始 bash 脚本与 `compose/*.yml` 保留不变，在 Linux 服务器或 WSL/Git Bash 环境下仍可使用。
-Windows 下推荐直接使用根目录的 `docker-compose.yml` + 标准 `docker compose` 命令。
+开发与生产各只有一份 compose（根目录的 `docker-compose.yml` 与 `docker-compose.prod.yml`），bash 脚本与 PowerShell 封装都指向同一份文件，在 Linux 服务器、WSL 或 Git Bash 下均可使用。
+Windows 下推荐直接使用根目录的 compose 文件 + 标准 `docker compose` 命令。

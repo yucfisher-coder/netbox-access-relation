@@ -17,12 +17,14 @@
 - [当前需求确认稿](docs/requirements.md)
 - [系统架构与设计](docs/architecture.md)
 
+### 开发与结构
+- [代码结构说明](docs/code-structure.md)
+- [本地开发指南](docs/development.md)
+
 ### 部署
 - [Linux x86_64 (amd64) 离线部署指南](docs/linux-amd64-offline-deployment.md)
 - [Windows Docker Desktop 部署指南](docs/windows-docker-desktop-deployment.md)
-- [生产部署与恢复（完整版）](docs/production-deployment.md)
-- [迁移用的手工备份、恢复与本地重建](docs/manual-backup-reset-deploy.md)
-- [AMD64 部署与数据迁移（简版）](docs/simple-deployment-and-migration.md)
+- [生产部署、备份、恢复与迁移（完整版）](docs/production-deployment.md)
 
 ### 发布
 - [离线源码构建发布脚本](scripts/release-source-package)
