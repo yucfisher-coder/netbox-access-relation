@@ -6,6 +6,7 @@ from netbox.api.fields import ChoiceField
 from netbox.api.serializers import NetBoxModelSerializer, PrimaryModelSerializer
 
 from ..models import AccessPolicy, ActiveStatusChoices, ApplicationSystem, PolicyService, SystemAddress, SystemAlias, TransportProtocolChoices
+from ..services.policy_uniqueness import find_duplicate_policies, get_policy_service_keys, service_key
 
 
 class ApplicationSystemSerializer(PrimaryModelSerializer):
@@ -87,6 +88,30 @@ class AccessPolicySerializer(PrimaryModelSerializer):
     def get_effective_status(self, obj):
         return obj.effective_status
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        # On create the service set does not exist yet; services are added via
+        # the policy-service endpoint, which performs its own check.
+        if self.instance is None:
+            return attrs
+        source = attrs.get("source_system", self.instance.source_system)
+        target = attrs.get("target_system", self.instance.target_system)
+        source_id = getattr(source, "pk", source)
+        target_id = getattr(target, "pk", target)
+        if source_id and target_id and source_id != target_id:
+            duplicates = find_duplicate_policies(
+                source_id,
+                target_id,
+                get_policy_service_keys(self.instance),
+                exclude_policy_id=self.instance.pk,
+            )
+            if duplicates:
+                names = "、".join(p.name for p in duplicates)
+                raise serializers.ValidationError(
+                    f"已存在源系统、目标系统与服务项完全相同的访问关系：{names}。"
+                )
+        return attrs
+
 
 class PolicyServiceSerializer(NetBoxModelSerializer):
     policy = AccessPolicySerializer(nested=True)
@@ -100,3 +125,34 @@ class PolicyServiceSerializer(NetBoxModelSerializer):
             "port_display", "tags", "custom_fields", "created", "last_updated",
         )
         brief_fields = ("id", "url", "display", "protocol", "port_display")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        policy = attrs.get("policy") or (self.instance.policy if self.instance else None)
+        if policy is None:
+            return attrs
+        # Compute the policy's service set as it would look after this write.
+        keys = set(get_policy_service_keys(policy))
+        if self.instance is not None:
+            keys.discard(service_key(
+                self.instance.protocol, self.instance.is_any,
+                self.instance.port_start, self.instance.port_end,
+            ))
+        keys.add(service_key(
+            attrs.get("protocol", self.instance.protocol if self.instance else None),
+            attrs.get("is_any", self.instance.is_any if self.instance else False),
+            attrs.get("port_start", self.instance.port_start if self.instance else None),
+            attrs.get("port_end", self.instance.port_end if self.instance else None),
+        ))
+        duplicates = find_duplicate_policies(
+            policy.source_system_id,
+            policy.target_system_id,
+            frozenset(keys),
+            exclude_policy_id=policy.pk,
+        )
+        if duplicates:
+            names = "、".join(p.name for p in duplicates)
+            raise serializers.ValidationError(
+                f"已存在源系统、目标系统与服务项完全相同的访问关系：{names}。"
+            )
+        return attrs

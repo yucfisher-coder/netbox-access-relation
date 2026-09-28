@@ -28,6 +28,7 @@ from .services.ipam_writes import (
     apply_native_values,
     write_system_address,
 )
+from .services.policy_uniqueness import find_duplicate_policies, service_key
 
 
 class LocalizedStandardFieldsMixin:
@@ -137,7 +138,8 @@ class AccessPolicyForm(LocalizedStandardFieldsMixin, PrimaryModelForm):
             "description", "owner", "comments", "tags",
         )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
         super().__init__(*args, **kwargs)
         self.service_formset = PolicyServiceInlineFormSet(
             data=self.data if self.is_bound else None,
@@ -145,6 +147,43 @@ class AccessPolicyForm(LocalizedStandardFieldsMixin, PrimaryModelForm):
             instance=self.instance,
             prefix="services",
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        source = cleaned.get("source_system")
+        target = cleaned.get("target_system")
+        # Only check once endpoints are resolved and the service formset is valid.
+        if source and target and source != target and self.service_formset.is_valid():
+            service_keys = self._collect_service_keys()
+            if service_keys:
+                duplicates = find_duplicate_policies(
+                    source.pk,
+                    target.pk,
+                    service_keys,
+                    exclude_policy_id=self.instance.pk,
+                    user=self.user,
+                )
+                if duplicates:
+                    names = "、".join(policy.name for policy in duplicates)
+                    self.add_error(
+                        None,
+                        _(f"已存在源系统、目标系统与服务项完全相同的访问关系：{names}。"),
+                    )
+        return cleaned
+
+    def _collect_service_keys(self):
+        keys = set()
+        for form in self.service_formset.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            data = form.cleaned_data
+            keys.add(service_key(
+                data.get("protocol"),
+                data.get("is_any", False),
+                data.get("port_start"),
+                data.get("port_end"),
+            ))
+        return frozenset(keys)
 
     def is_valid(self):
         # Evaluate both sides so users see all parent and service errors in one response.

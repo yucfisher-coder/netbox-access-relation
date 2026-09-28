@@ -486,6 +486,10 @@ class AccessPolicyEditView(generic.ObjectEditView):
     form = forms.AccessPolicyForm
     template_name = "netbox_access_relations/accesspolicy_edit.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        self.form = partial(forms.AccessPolicyForm, user=request.user)
+        return super().dispatch(request, *args, **kwargs)
+
     def post(self, request, *args, **kwargs):
         """Return save failures to the populated form instead of an unhelpful 500 page."""
         try:

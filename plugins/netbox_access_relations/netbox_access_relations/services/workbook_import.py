@@ -23,6 +23,7 @@ from openpyxl.styles import Font, PatternFill
 
 from ..models import AccessPolicy, ActiveStatusChoices, ApplicationSystem, PolicyService, SystemAddress, SystemAlias
 from .ipam_writes import OPERATION_CREATE, TYPE_IP_ADDRESS, TYPE_IP_RANGE, TYPE_PREFIX, write_system_address
+from .policy_uniqueness import find_duplicate_policies
 
 
 TEMPLATE_VERSION = "1.0"
@@ -488,7 +489,7 @@ def _preview_policies(parsed, plan, user):
         except ValueError as exc:
             _error(plan, "访问关系", row, "valid_until", data.get("valid_until"), str(exc))
         if source and target:
-            enriched = {**data, "source_id": source.pk, "target_id": target.pk}
+            enriched = {**data, "source_id": source.pk, "target_id": target.pk, "_row": row}
             pending[key] = enriched
             plan.rows.append(PlanRow("访问关系", row, "create_policy", f"新增访问关系：{name}", enriched))
 
@@ -518,6 +519,36 @@ def _preview_policies(parsed, plan, user):
     for key, data in pending.items():
         if not services.get(key):
             _error(plan, "服务项", 0, "policy_name", data["policy_name"], "每个访问关系至少需要一个服务项。")
+    _validate_policy_uniqueness(pending, services, plan, user)
+
+
+def _validate_policy_uniqueness(pending, services, plan, user):
+    """Reject policies whose endpoint + service set duplicates an existing or
+    in-workbook policy.  Validity period and category are intentionally ignored."""
+    seen = {}
+    for key, data in pending.items():
+        service_keys = frozenset(services.get(key, set()))
+        if not service_keys:
+            continue
+        # Against policies already in the database.
+        duplicates = find_duplicate_policies(
+            data["source_id"], data["target_id"], service_keys, user=user,
+        )
+        if duplicates:
+            _error(
+                plan, "访问关系", data["_row"], "policy_name", data["policy_name"],
+                f"已存在源系统、目标系统与服务项完全相同的访问关系：{duplicates[0].name}。",
+            )
+            continue
+        # Against other policies created by this same workbook.
+        bucket = (data["source_id"], data["target_id"], service_keys)
+        if bucket in seen:
+            _error(
+                plan, "访问关系", data["_row"], "policy_name", data["policy_name"],
+                f"与工作簿第 {seen[bucket]} 行的访问关系源系统、目标系统和服务项完全相同。",
+            )
+        else:
+            seen[bucket] = data["_row"]
 
 
 def _parse_datetime(value):
