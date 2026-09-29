@@ -149,7 +149,9 @@ class AccessPolicyForm(LocalizedStandardFieldsMixin, PrimaryModelForm):
         )
 
     def clean(self):
-        cleaned = super().clean()
+        # NetBox's PrimaryModelForm.clean() validates in place and may return
+        # None. Django still exposes the populated values on cleaned_data.
+        cleaned = super().clean() or self.cleaned_data
         source = cleaned.get("source_system")
         target = cleaned.get("target_system")
         # Only check once endpoints are resolved and the service formset is valid.

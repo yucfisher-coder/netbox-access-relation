@@ -23,7 +23,7 @@ RUN /usr/local/bin/uv pip install \
       --offline \
       /tmp/wheelhouse/et_xmlfile-*.whl \
       /tmp/wheelhouse/openpyxl-*.whl \
-      /tmp/wheelhouse/netbox_access_relations-1.1.0-py3-none-any.whl \
+      /tmp/wheelhouse/netbox_access_relations-1.1.1-py3-none-any.whl \
     && rm -rf /tmp/wheelhouse
 USER netbox
 WORKDIR /opt/netbox/netbox

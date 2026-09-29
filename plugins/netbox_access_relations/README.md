@@ -9,6 +9,7 @@ systems.
 - Business systems, aliases, owners, and lifecycle status
 - Associations with NetBox prefixes, IP addresses, and IP ranges
 - Directional, time-bounded access policies with TCP and UDP services
+- Inline service editor with add and remove controls; an access policy always retains one editable service row
 - Security-zone resolution and zone matrix views
 - Read-only service queries and permission-aware CSV export
 - Versioned XLSX templates with preview and transactional import
@@ -32,7 +33,7 @@ NetBox deployment, add the released package to
 wheel can also be installed directly:
 
 ```shell
-/opt/netbox/venv/bin/pip install netbox_access_relations-1.1.0-py3-none-any.whl
+/opt/netbox/venv/bin/pip install netbox_access_relations-1.1.1-py3-none-any.whl
 ```
 
 Enable the plugin in NetBox's `configuration.py`:

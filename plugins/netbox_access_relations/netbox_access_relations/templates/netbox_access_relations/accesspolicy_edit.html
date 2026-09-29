@@ -37,7 +37,13 @@
       {% for service_form in form.service_formset.forms %}
         <div class="policy-service-form border rounded p-3 mb-3">
           {% for hidden in service_form.hidden_fields %}{{ hidden }}{% endfor %}
-          {% for field in service_form.visible_fields %}{% render_field field %}{% endfor %}
+          {% for field in service_form.visible_fields %}
+            {% if field.name != "DELETE" %}{% render_field field %}{% endif %}
+          {% endfor %}
+          <span class="d-none">{{ service_form.DELETE }}</span>
+          <button type="button" class="btn btn-outline-danger remove-policy-service">
+            <i class="mdi mdi-minus-thick" aria-hidden="true"></i> {% trans "Remove service" %}
+          </button>
         </div>
       {% endfor %}
     </div>
@@ -45,7 +51,13 @@
     <template id="empty-policy-service-form">
       <div class="policy-service-form border rounded p-3 mb-3">
         {% for hidden in form.service_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-        {% for field in form.service_formset.empty_form.visible_fields %}{% render_field field %}{% endfor %}
+        {% for field in form.service_formset.empty_form.visible_fields %}
+          {% if field.name != "DELETE" %}{% render_field field %}{% endif %}
+        {% endfor %}
+        <span class="d-none">{{ form.service_formset.empty_form.DELETE }}</span>
+        <button type="button" class="btn btn-outline-danger remove-policy-service">
+          <i class="mdi mdi-minus-thick" aria-hidden="true"></i> {% trans "Remove service" %}
+        </button>
       </div>
     </template>
   </div>
@@ -61,13 +73,33 @@
       const totalForms = document.getElementById('id_services-TOTAL_FORMS');
       if (!addButton || !container || !template || !totalForms) return;
 
+      const updateRemoveButtons = () => {
+        const visibleForms = container.querySelectorAll('.policy-service-form:not(.d-none)');
+        visibleForms.forEach((serviceForm) => {
+          serviceForm.querySelector('.remove-policy-service').disabled = visibleForms.length <= 1;
+        });
+      };
+
       addButton.addEventListener('click', () => {
         const index = Number.parseInt(totalForms.value, 10);
         const wrapper = document.createElement('div');
         wrapper.innerHTML = template.innerHTML.replaceAll('__prefix__', index);
         container.appendChild(wrapper.firstElementChild);
         totalForms.value = index + 1;
+        updateRemoveButtons();
       });
+
+      container.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('.remove-policy-service');
+        if (!removeButton || removeButton.disabled) return;
+
+        const serviceForm = removeButton.closest('.policy-service-form');
+        serviceForm.querySelector('input[name$="-DELETE"]').checked = true;
+        serviceForm.classList.add('d-none');
+        updateRemoveButtons();
+      });
+
+      updateRemoveButtons();
     });
   </script>
 {% endblock javascript %}
