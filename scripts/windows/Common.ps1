@@ -31,11 +31,11 @@ function Test-ProductionEnvFile {
 }
 
 function Get-DevComposeFile {
-    return (Join-Path (Get-RepoRoot) 'compose\dev.yml')
+    return (Join-Path (Get-RepoRoot) 'docker-compose.yml')
 }
 
 function Get-ProductionComposeFile {
-    return (Join-Path (Get-RepoRoot) 'compose\production.yml')
+    return (Join-Path (Get-RepoRoot) 'docker-compose.prod.yml')
 }
 
 function Invoke-DevCompose {

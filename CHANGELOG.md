@@ -5,6 +5,21 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-30
+
+### Fixed
+
+- 修复 Windows PowerShell 运维封装仍引用已删除 `compose/` 目录的问题，统一使用根目录 Compose 文件。
+- 恢复 Linux/macOS bash 脚本的可执行位。
+
+### Changed
+
+- 明确插件包、Docker 开发环境和已验证 Linux 生产环境的跨平台支持边界。
+
+### Notes
+
+- 本版本不包含数据库迁移，数据结构基线仍为 `0001`～`0005`，可直接从 `1.2.0` 升级。
+
 ## [1.2.0] - 2026-09-30
 
 ### Changed

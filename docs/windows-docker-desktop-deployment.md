@@ -1,7 +1,9 @@
 # Windows Docker Desktop 部署指南
 
-本文介绍如何在 **Windows + Docker Desktop** 环境下部署本项目（NetBox 访问关系插件 v1.2.0）。
+本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.2.1）。
 项目根目录已提供标准的 `docker-compose.yml`（开发）和 `docker-compose.prod.yml`（生产），直接用 `docker compose` 命令即可运行，无需安装 Git Bash、WSL 或 openssl。`deploy.ps1` 只是可选的便捷封装。
+
+> Windows Docker Desktop 是受支持的开发与评估环境；发布验证的生产目标是 Linux `amd64` 和 Linux `arm64` Docker 主机。Windows 主机运行的是 Docker 的 Linux 容器，不是原生 Windows NetBox 服务。
 
 ## 架构兼容性（arm64 / amd64）
 
@@ -33,7 +35,7 @@
    ```powershell
    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    ```
-   本项目脚本均为本地签名的可信脚本，`RemoteSigned` 策略即可运行。
+   `RemoteSigned` 允许本地脚本运行；从互联网下载并带有来源标记的脚本需要受信任签名或先按组织安全策略解除来源标记。
 
 ## 二、开发环境快速部署（推荐）
 
@@ -79,7 +81,7 @@ docker compose logs -f
 
 ## 三、生产环境部署
 
-生产环境使用预构建镜像（`netbox-access-relations:1.2.0`），数据保存在 Docker 外部卷中。
+生产环境使用预构建镜像（`netbox-access-relations:1.2.1`），数据保存在 Docker 外部卷中。
 
 ### 1. 准备镜像
 
@@ -89,7 +91,7 @@ docker compose logs -f
 docker pull netboxcommunity/netbox:v4.7.0-5.1.1
 docker pull postgres:18.6-alpine
 docker pull redis:7.4.11-alpine
-docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.2.0 .
+docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.2.1 .
 ```
 
 ### 2. 配置环境变量

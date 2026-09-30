@@ -6,10 +6,10 @@
 
 ## 一、前置条件
 
-- Docker Engine 与 Docker Compose v2（Linux / macOS / Windows Docker Desktop 均可）。
+- Docker Engine 与 Docker Compose v2（Linux / macOS / Windows Docker Desktop 均可）。容器运行目标为 `linux/amd64` 或 `linux/arm64`；Windows 与 macOS 的支持指 Docker Desktop 开发环境，不等同于原生宿主服务部署。
 - 开发镜像在与本机一致的 CPU 架构上构建（amd64 或 arm64）。
-- Linux/macOS 用 `scripts/*`（bash）；Windows 用根目录的 `deploy.ps1` 或 `scripts/windows/*.ps1`。
-  两套都指向同一份根目录 Compose。
+- Linux/macOS 用 `scripts/*`（bash）；Windows 可用根目录的 `deploy.ps1`、`scripts/windows/*.ps1`，或直接使用 `docker compose`。
+  三种入口都指向同一份根目录 Compose。
 
 ## 二、初始化环境变量
 

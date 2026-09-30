@@ -5,12 +5,12 @@
 #   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 #
 # 需要先: 复制 .env.production.example 为 .env.production 并填入真实密钥,
-#         且本地已构建/加载镜像 netbox-access-relations:1.2.0。
+#         且本地已构建/加载镜像 netbox-access-relations:1.2.1。
 
 name: netbox-access-relations-prod
 
 x-netbox: &netbox
-  image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.2.0}
+  image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.2.1}
   pull_policy: never
   env_file:
     - .env.production
@@ -27,7 +27,7 @@ x-netbox: &netbox
 
 services:
   media-init:
-    image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.2.0}
+    image: ${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:1.2.1}
     pull_policy: never
     user: "0:0"
     entrypoint: ["/bin/sh", "-c"]

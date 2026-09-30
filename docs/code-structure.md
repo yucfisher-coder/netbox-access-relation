@@ -29,7 +29,7 @@ netbox-access-relation/
 ```
 
 > 历史上 `compose/` 目录与根目录曾并存两套 Compose，现已统一为根目录的 `docker-compose.yml`
-> 与 `docker-compose.prod.yml`，bash 脚本、PowerShell 封装和 CI 都指向同一份文件。
+> 与 `docker-compose.prod.yml`；bash 脚本、PowerShell 封装和 CI 都使用这两份文件。
 
 ## 二、为什么这样分层
 

@@ -22,6 +22,8 @@ scripts/init-env
 scripts/dev up
 ```
 
+On Windows, use `.\deploy.ps1 init-env` followed by `docker compose up -d --build`; see `docs/windows-docker-desktop-deployment.md` for the Windows workflow.
+
 The plugin can also be installed in editable mode in a compatible NetBox
 development environment:
 
