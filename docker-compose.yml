@@ -28,7 +28,10 @@ x-netbox: &netbox
     DEBUG: "true"
     DEVELOPER: "true"
   volumes:
-    - ./plugins/netbox_access_relations:/plugins/netbox_access_relations:rw
+    # 挂载发行元数据和 Django app；容器以 editable 模式安装该插件。
+    - ./pyproject.toml:/plugin/pyproject.toml:ro
+    - ./README.md:/plugin/README.md:ro
+    - ./netbox_access_relations:/plugin/netbox_access_relations:rw
     - ./config/plugins.py:/etc/netbox/config/plugins.py:ro
     - media:/opt/netbox/netbox/media:rw
   entrypoint:

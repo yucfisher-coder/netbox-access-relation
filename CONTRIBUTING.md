@@ -26,7 +26,7 @@ The plugin can also be installed in editable mode in a compatible NetBox
 development environment:
 
 ```shell
-python -m pip install -e plugins/netbox_access_relations
+python -m pip install -e .
 ```
 
 ## Tests and verification

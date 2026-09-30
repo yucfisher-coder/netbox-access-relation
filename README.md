@@ -2,6 +2,10 @@
 
 > 目标：NetBox Community **4.7.0** + 独立 Python 插件；宿主机编辑、Compose 开发；生产安装 wheel 后构建不可变镜像。
 
+插件发行根就是本仓库根目录：运行时依赖仅由 [`pyproject.toml`](pyproject.toml) 声明，Django app 位于
+[`netbox_access_relations/`](netbox_access_relations)。因此可在任何兼容的 NetBox Python 环境中使用
+`pip install .` 构建或安装插件；Docker、Compose 与脚本仅为本项目提供的可选开发和部署环境。
+
 ## 项目状态
 
 当前发布版本 **1.1.1**。首个生产版本 **1.0.0** 已于 2026-09-22 完成发布门禁。当前包含 `ApplicationSystem`、`SystemAlias`、

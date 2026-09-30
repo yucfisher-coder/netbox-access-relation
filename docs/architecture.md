@@ -43,7 +43,7 @@ ApplicationSystem（业务系统）
 ### 派生字段（不允许手动编辑）
 
 - `ApplicationSystem.is_co_located`：当系统与其他系统共享同一原生 IPAM 对象时自动标记为 `True`。
-  由 [`co_location.py`](../plugins/netbox_access_relations/netbox_access_relations/services/co_location.py)
+  由 [`co_location.py`](../netbox_access_relations/services/co_location.py)
   在地址变更时事务性重算。
 - `AccessPolicy.effective_status`：根据 `valid_from` / `valid_until` 和当前时间动态计算
   （upcoming / active / expired），不落库。
@@ -59,7 +59,7 @@ ApplicationSystem（业务系统）
 ## 四、模块划分
 
 ```
-plugins/netbox_access_relations/netbox_access_relations/
+netbox_access_relations/
 ├── __init__.py          # PluginConfig 声明、版本号
 ├── config.py            # 配置类别名（向后兼容）
 ├── models.py            # 五个数据模型定义
@@ -127,7 +127,7 @@ Prefix 对象可直接设置区域，也可从祖先 Prefix 继承。解析结�
 ### 5.4 原生 IPAM 原子写入
 
 `SystemAddress` 的保存可同时创建或更新关联的原生 IPAM 对象（Prefix/IPAddress/IPRange）。
-由 [`ipam_writes.py`](../plugins/netbox_access_relations/netbox_access_relations/services/ipam_writes.py)
+由 [`ipam_writes.py`](../netbox_access_relations/services/ipam_writes.py)
 在一个事务中完成，并强制执行 NetBox 对象级权限（`restrict`）检查。
 
 ## 六、权限模型

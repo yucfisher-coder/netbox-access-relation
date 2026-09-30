@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-plugin_source=/plugins/netbox_access_relations
+plugin_source=/plugin
 
 if [[ ! -f "${plugin_source}/pyproject.toml" ]]; then
   echo "Plugin source is not mounted at ${plugin_source}" >&2

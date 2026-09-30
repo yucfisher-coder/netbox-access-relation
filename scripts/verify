@@ -13,7 +13,7 @@ PRODUCTION_ENV_FILE="../.env.production.example" docker compose \
 docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-access-relations:1.1.1 \
   -c 'import importlib.metadata as m; assert m.version("netbox-access-relations") == "1.1.1"'
 docker run --rm --entrypoint /bin/sh netbox-access-relations:1.1.1 \
-  -c 'test ! -e /plugins/netbox_access_relations && test ! -e /tmp/netbox_access_relations-1.1.1-py3-none-any.whl'
+  -c 'test ! -e /plugin && test ! -e /tmp/netbox_access_relations-1.1.1-py3-none-any.whl'
 
 dev_compose_cmd up --detach postgres redis redis-cache init
 dev_compose_cmd run --rm --no-deps init \

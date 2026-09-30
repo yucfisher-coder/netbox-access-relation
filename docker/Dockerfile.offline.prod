@@ -3,7 +3,8 @@ ARG NETBOX_IMAGE=docker.io/netboxcommunity/netbox:v4.7.0-5.1.1@sha256:1685e91c61
 
 FROM ${PYTHON_BUILD_IMAGE} AS plugin-builder
 WORKDIR /build
-COPY plugins/netbox_access_relations/ ./
+COPY pyproject.toml README.md LICENSE MANIFEST.in CHANGELOG.md COMPATIBILITY.md CONTRIBUTING.md SECURITY.md ./
+COPY netbox_access_relations/ ./netbox_access_relations/
 COPY locks/production-requirements.txt /tmp/production-requirements.txt
 COPY offline-wheelhouse/ /offline-wheelhouse/
 RUN python -m pip wheel --no-index --find-links=/offline-wheelhouse --no-deps --wheel-dir /wheelhouse . \
@@ -23,7 +24,7 @@ RUN /usr/local/bin/uv pip install \
       --offline \
       /tmp/wheelhouse/et_xmlfile-*.whl \
       /tmp/wheelhouse/openpyxl-*.whl \
-      /tmp/wheelhouse/netbox_access_relations-1.1.1-py3-none-any.whl \
+      /tmp/wheelhouse/netbox_access_relations-*.whl \
     && rm -rf /tmp/wheelhouse
 USER netbox
 WORKDIR /opt/netbox/netbox

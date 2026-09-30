@@ -188,7 +188,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
    脚本会检测 Docker 守护进程，未启动时报错提示。请先在开始菜单启动 Docker Desktop。
 
 2. **文件路径**
-   Compose 文件中的相对路径（如 `../plugins/...`）在 Windows Docker Desktop 下可正常工作，
+   Compose 文件中的相对路径（如 `./netbox_access_relations`）在 Windows Docker Desktop 下可正常工作，
    Docker Desktop 会自动处理路径转换。无需修改为 Windows 路径格式。
 
 3. **端口占用**

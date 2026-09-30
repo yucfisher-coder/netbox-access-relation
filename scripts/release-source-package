@@ -37,11 +37,14 @@ for image in "${base_image}" "${python_builder_image}" "${postgres_image}" "${re
   fi
 done
 
-mkdir -p "${package_dir}/docker" "${package_dir}/plugins" "${package_dir}/config" \
+mkdir -p "${package_dir}/docker" "${package_dir}/config" \
   "${package_dir}/locks" "${package_dir}/scripts" \
   "${package_dir}/docs" "${package_dir}/offline-wheelhouse"
 cp "${repo_root}/docker/Dockerfile.offline.prod" "${package_dir}/docker/"
-cp -a "${repo_root}/plugins/netbox_access_relations" "${package_dir}/plugins/"
+cp "${repo_root}/pyproject.toml" "${repo_root}/MANIFEST.in" "${repo_root}/README.md" \
+  "${repo_root}/LICENSE" "${repo_root}/CHANGELOG.md" "${repo_root}/COMPATIBILITY.md" \
+  "${repo_root}/CONTRIBUTING.md" "${repo_root}/SECURITY.md" "${package_dir}/"
+cp -a "${repo_root}/netbox_access_relations" "${package_dir}/"
 cp "${repo_root}/config/plugins.py" "${package_dir}/config/"
 cp "${repo_root}/locks/production-requirements.txt" "${repo_root}/locks/images.md" "${package_dir}/locks/"
 cp "${repo_root}/docker-compose.prod.yml" "${package_dir}/"

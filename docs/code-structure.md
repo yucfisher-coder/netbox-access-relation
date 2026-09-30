@@ -6,14 +6,16 @@
 
 ## 一、仓库整体布局
 
-本仓库是一个 **monorepo**：同时包含"可分发的 NetBox 插件"和"运行该插件的完整部署基础设施"。
+本仓库以一个可分发的 NetBox 插件包为核心，并带有可选的 Docker 开发、生产与离线交付基础设施。
 顶层目录按职责划分如下：
 
 ```
 netbox-access-relation/
-├── plugins/                可分发的插件产物（独立 Python 包，含自己的 pyproject.toml）
+├── pyproject.toml          插件发行配置及运行时依赖（唯一依赖来源）
+├── MANIFEST.in             sdist 打包清单
+├── netbox_access_relations/ Django app（可导入的插件包）
 ├── docker/                 镜像构建文件（开发 / 生产 / 离线生产 Dockerfile 与入口脚本）
-├── config/                 挂载进容器的 NetBox 插件配置（plugins.py）
+├── config/                 挂载或内置进容器的 NetBox 运行时配置（plugins.py）
 ├── scripts/                Linux/macOS 开发与发布脚本（bash）
 │   └── windows/            Windows 等效脚本（PowerShell）
 ├── locks/                  锁定的依赖与镜像 digest（构建可复现）
@@ -33,23 +35,22 @@ netbox-access-relation/
 
 | 关注点 | 放在哪 | 理由 |
 |---|---|---|
-| 插件业务代码 | `plugins/netbox_access_relations/` | 作为独立 wheel 构建与分发，与部署解耦 |
+| 插件业务代码 | 仓库根的 `netbox_access_relations/` 与 `pyproject.toml` | 可直接构建 wheel 或执行 `pip install .` |
 | 部署基础设施 | 仓库根（`docker/`、`scripts/`、Compose、`config/`） | 服务于"在官方 NetBox 镜像里运行插件"，不属于插件本身 |
 | 文档 | `docs/` | 按功能分组，单一归属，避免与代码混杂 |
 | 锁定信息 | `locks/` | 依赖版本与镜像 digest 独立于源码，保证离线构建可复现 |
 
-把插件收进 `plugins/`，是为了让"插件源码挂载进官方 NetBox 镜像开发"与"生产不可变镜像"两种工作流
-都能成立，而不把部署文件混入插件发行包。
+`pyproject.toml` 与 `netbox_access_relations/` 位于根目录，因而在任意兼容的 NetBox 环境中可直接执行
+`pip install .` 或构建 wheel。Docker、Compose 和脚本是可选运行基础设施，不属于 Python 包的导入路径。
 
 ## 三、插件包内部结构
 
-`plugins/netbox_access_relations/` 是一个标准 Python 发行包，分两层：
+仓库根是标准 Python 发行根，`netbox_access_relations/` 是唯一的可导入 Django app：
 
 ```
-plugins/netbox_access_relations/        ← 发行根（distribution root）
-├── pyproject.toml                      构建配置：包名 netbox-access-relations、依赖、打包清单
-├── MANIFEST.in                         sdist 打包包含的文件
-├── netbox-plugin.yaml                  （位于包内）NetBox 插件清单
+netbox-access-relation/                 ← 发行根（distribution root）
+├── pyproject.toml                      构建配置：包名、运行时依赖、打包规则
+├── MANIFEST.in                          sdist 打包包含的文件
 ├── README.md / CHANGELOG.md / LICENSE  随发行包分发的元数据文档
 └── netbox_access_relations/            ← 可导入的 Python 包（Django app）
     ├── __init__.py                     PluginConfig 声明（入口，见下）
@@ -65,21 +66,20 @@ plugins/netbox_access_relations/        ← 发行根（distribution root）
     └── locale/zh/                      简体中文翻译
 ```
 
-**同名两层（`netbox_access_relations/netbox_access_relations/`）不是冗余**：外层是发行根
-（放 `pyproject.toml`、`MANIFEST.in` 等打包元数据，这些不能放进可导入包），内层才是真正被
-`import` 的 Django app。这与 netbox-acls、netbox-topology-views 等参考插件的布局一致——区别仅在于
-本项目用 `plugins/` 把插件和部署基础设施隔开。
+运行时依赖只在 `pyproject.toml` 的 `[project.dependencies]` 中声明；不维护第二份
+`plugin_requirements.txt`，以免镜像构建与 wheel 安装产生版本漂移。开发工具依赖如有需要，应单独放在
+`requirements-dev.txt` 或开发依赖组中。
 
 ## 四、关键入口与扩展点
 
 从哪里读起：
 
-1. **插件入口**：[`plugins/.../netbox_access_relations/__init__.py`](../plugins/netbox_access_relations/netbox_access_relations/__init__.py)
+1. **插件入口**：[`netbox_access_relations/__init__.py`](../netbox_access_relations/__init__.py)
    定义 `AccessRelationsConfig`（`name`、`base_url=access-relations`、版本兼容区间），并在 `ready()`
    中连接信号。NetBox 通过它发现并加载插件。
-2. **数据模型**：[`models.py`](../plugins/netbox_access_relations/netbox_access_relations/models.py)
+2. **数据模型**：[`models.py`](../netbox_access_relations/models.py)
    定义 `ApplicationSystem` / `SystemAlias` / `SystemAddress` / `AccessPolicy` / `PolicyService`。
-3. **业务逻辑**：[`services/`](../plugins/netbox_access_relations/netbox_access_relations/services) 是
+3. **业务逻辑**：[`services/`](../netbox_access_relations/services) 是
    纯业务层，不依赖 HTTP。新增逻辑优先放这里，再由 Web/API/导入调用，保证行为一致。
 4. **写入入口**：数据有三个写入路径——Web 表单（`forms.py`）、工作簿导入（`services/workbook_import.py`）、
    REST API（`api/`）。涉及唯一性等共享校验时，三处都要调用同一处服务层逻辑。

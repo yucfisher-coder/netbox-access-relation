@@ -56,7 +56,8 @@ Windows 等效：`.\deploy.ps1 dev {up|stop|down|ps|logs}`。
 
 开发镜像 [`docker/Dockerfile.dev`](../docker/Dockerfile.dev) 基于官方 NetBox 镜像，
 入口 [`docker/dev-entrypoint.sh`](../docker/dev-entrypoint.sh) 以**可编辑模式**安装插件
-（`uv pip install --editable`），并把 `plugins/netbox_access_relations` 源码挂载进容器。
+（`uv pip install --editable`），并把仓库根的发行元数据及 `netbox_access_relations`
+源码挂载进容器。
 因此改 Python 代码后，`runserver` 会自动重载，无需重建镜像。
 
 服务依赖链：`postgres / redis / redis-cache → netbox（启动时自动迁移）→ worker`，
@@ -77,7 +78,7 @@ scripts/dev debug
 涉及模型或约束变化的改动进入新的升级版本。
 
 ```bash
-scripts/dev makemigrations   # 生成迁移（写入 plugins/.../migrations/）
+scripts/dev makemigrations   # 生成迁移（写入 netbox_access_relations/migrations/）
 scripts/dev migrate          # 应用迁移
 ```
 

@@ -85,7 +85,7 @@ dist/offline-release-1.1.1/
 scp -r dist/offline-release-1.1.1 user@prod-server:/opt/
 ```
 
-> 不要只复制 `images.tar`。不要把开发目录、`plugins/` 源码、`.env` 或真实密码传输到生产。
+> 不要只复制 `images.tar`。不要把开发源码、`.env` 或真实密码传输到生产。
 
 ## 三、在生产服务器部署
 
