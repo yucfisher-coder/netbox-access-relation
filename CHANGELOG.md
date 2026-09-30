@@ -5,6 +5,17 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-30
+
+### Changed
+
+- 修正 CI 与发布工作流的 wheel 构建目录，恢复从仓库发行根构建插件包。
+- 补齐入口文档、兼容性矩阵与发布索引，并统一部署示例、脚本和镜像标签到 `1.2.0`。
+
+### Notes
+
+- 本版本不包含数据库迁移，数据结构基线仍为 `0001`～`0005`，可直接从 `1.1.1` 升级。
+
 ## [1.1.1] - 2026-09-29
 
 ### Fixed

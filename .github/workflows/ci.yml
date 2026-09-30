@@ -45,13 +45,13 @@ jobs:
           python-version: "3.12"
 
       - name: Build wheel
-        working-directory: plugins/netbox_access_relations
+        working-directory: .
         run: |
           python -m pip install --upgrade pip build
           python -m build --wheel
 
       - name: Verify packaged contents
-        working-directory: plugins/netbox_access_relations
+        working-directory: .
         run: |
           whl=$(ls dist/*.whl | head -n1)
           echo "Built: $whl"

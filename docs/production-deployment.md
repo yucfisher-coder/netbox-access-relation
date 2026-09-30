@@ -1,6 +1,6 @@
 # 生产离线部署、升级与恢复
 
-本文适用于 `1.1.1` 的人工离线部署。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0005`；
+本文适用于 `1.2.0` 的人工离线部署。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0005`；
 本版本不包含迁移。不要把开发目录、真实密钥、数据库备份或业务工作簿放入发布介质。
 
 > 按平台的快速部署指南：[Linux x86_64 (amd64) 离线部署](linux-amd64-offline-deployment.md) ｜
@@ -23,7 +23,7 @@ scripts/verify
 scripts/release-package
 ```
 
-最后一个命令生成已构建运行镜像的 `dist/offline-release-1.1.1/`。这适用于生产机只导入并运行镜像的场景。
+最后一个命令生成已构建运行镜像的 `dist/offline-release-1.2.0/`。这适用于生产机只导入并运行镜像的场景。
 
 若生产机必须从源码构建，改为执行：
 
@@ -31,7 +31,7 @@ scripts/release-package
 scripts/release-source-package
 ```
 
-该命令必须在与生产主机相同的 `linux/amd64` 构建机上执行；不要用 ARM64 构建机为 x86 生产环境制作镜像归档。它生成 `dist/offline-source-release-1.1.1/`，内容包括：
+该命令必须在与生产主机相同的 `linux/amd64` 构建机上执行；不要用 ARM64 构建机为 x86 生产环境制作镜像归档。它生成 `dist/offline-source-release-1.2.0/`，内容包括：
 
 - 插件完整源码、离线 Dockerfile、锁定依赖与 `setuptools==80.9.0` 的 wheelhouse；
 - `images.tar`：NetBox 基础镜像、Python 构建镜像、PostgreSQL 与 Redis 运行镜像；
@@ -40,20 +40,20 @@ scripts/release-source-package
 
 源码包不会包含已经构建好的应用镜像；它的生产构建脚本固定使用 `docker build --network=none`，因此不会拉取镜像、下载 Python 包或访问任何网络资源。
 
-将整个 `offline-source-release-1.1.1` 目录以只读介质转交。交接记录至少包含发布版本、Git 提交、构建时间、目标架构、`images.tar` SHA-256、基础镜像 digest、构建人与复核人。不要以应用镜像 ID 代替 OCI digest；二者不是同一标识。
+将整个 `offline-source-release-1.2.0` 目录以只读介质转交。交接记录至少包含发布版本、Git 提交、构建时间、目标架构、`images.tar` SHA-256、基础镜像 digest、构建人与复核人。不要以应用镜像 ID 代替 OCI digest；二者不是同一标识。
 
 ## 在离线生产主机安装
 
-以下示例以 `/opt/netbox-access-relations` 为安装目录，`/mnt/release/offline-source-release-1.1.1` 为已挂载的源码构建介质。路径可调整，但 `.env.production` 权限必须为 `0600`。
+以下示例以 `/opt/netbox-access-relations` 为安装目录，`/mnt/release/offline-source-release-1.2.0` 为已挂载的源码构建介质。路径可调整，但 `.env.production` 权限必须为 `0600`。
 
 ```bash
 sudo install -d -m 0750 /opt/netbox-access-relations
-sudo cp -a /mnt/release/offline-source-release-1.1.1/. /opt/netbox-access-relations/
+sudo cp -a /mnt/release/offline-source-release-1.2.0/. /opt/netbox-access-relations/
 cd /opt/netbox-access-relations
 sha256sum --check SHA256SUMS
 docker load --input images.tar
 scripts/build-offline-release
-docker image inspect netbox-access-relations:1.1.1 postgres:18.6-alpine redis:7.4.11-alpine
+docker image inspect netbox-access-relations:1.2.0 postgres:18.6-alpine redis:7.4.11-alpine
 sudo cp .env.production.example .env.production
 sudo chmod 0600 .env.production
 ```
@@ -61,7 +61,7 @@ sudo chmod 0600 .env.production
 `sha256sum --check` 必须全部通过；`docker load`、`scripts/build-offline-release` 或 `docker image inspect` 失败时立即停止，不得联网拉取或换用同名镜像。离线构建脚本使用 `--network=none`，若它因缺少镜像或 wheel 失败，应重新制作完整介质，而不是在生产机补下载。若介质由其他平台构建，也必须停止：重新在目标架构构建、验收并导出。
 
 编辑 `.env.production`，替换每个 `REPLACE_WITH_...` 占位值，至少确认 `ALLOWED_HOSTS` 是实际域名、
-`NETBOX_HTTP_PORT` 未与本机服务冲突、`NETBOX_PRODUCTION_IMAGE=netbox-access-relations:1.1.1`，并保持
+`NETBOX_HTTP_PORT` 未与本机服务冲突、`NETBOX_PRODUCTION_IMAGE=netbox-access-relations:1.2.0`，并保持
 `CENSUS_REPORTING_ENABLED=false` 和空的 `RELEASE_CHECK_URL`。使用密码管理系统生成并保存 `DB_PASSWORD`、两个 Redis 密码、`SECRET_KEY` 与 `API_TOKEN_PEPPER_1`；不要把此文件复制回介质、Git 或工单。
 
 ## 首次启动与验收
@@ -77,7 +77,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec -T net
   /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
 ```
 
-在 Compose 源文件和 `.env.production` 中复核：应用镜像是 `1.1.1`、端口仅为 `127.0.0.1`、三个 volume 均为 external。不要把 `docker compose config` 的完整输出保存到日志或工单，它可能展开密钥。确认 `netbox`、`worker`、`postgres`、`redis` 与 `redis-cache` 均健康后，经反向代理执行：登录、业务系统、访问策略、服务查询、区域矩阵四个入口；创建一个可撤销的测试对象；确认后台 worker 完成对应任务。将 `scripts/production status`、镜像 inspect 输出、迁移检查和人工验收结果作为本次发布证据保存。
+在 Compose 源文件和 `.env.production` 中复核：应用镜像是 `1.2.0`、端口仅为 `127.0.0.1`、三个 volume 均为 external。不要把 `docker compose config` 的完整输出保存到日志或工单，它可能展开密钥。确认 `netbox`、`worker`、`postgres`、`redis` 与 `redis-cache` 均健康后，经反向代理执行：登录、业务系统、访问策略、服务查询、区域矩阵四个入口；创建一个可撤销的测试对象；确认后台 worker 完成对应任务。将 `scripts/production status`、镜像 inspect 输出、迁移检查和人工验收结果作为本次发布证据保存。
 
 生产卷的默认名称分别为：
 
@@ -96,7 +96,7 @@ PostgreSQL 主版本升级必须创建新代际卷，禁止把 PostgreSQL 18 数
 4. 记录当前镜像标签与 `docker image inspect` 输出，执行 `scripts/production stop`，将 `.env.production` 中的 `NETBOX_PRODUCTION_IMAGE` 改为新标签，然后执行 `scripts/production up`。
 5. 等待服务健康，执行 `manage.py migrate --check`、登录与核心功能验收；如果新版本含迁移，须在发布说明定义并执行迁移验收，不能假定可逆。
 
-本次 `1.1.1` 没有迁移，且与 `1.0.0` 结构基线兼容。应用异常时只可切回与当前 schema 兼容的旧镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。
+本次 `1.2.0` 没有迁移，且与 `1.0.0` 结构基线兼容。应用异常时只可切回与当前 schema 兼容的旧镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。
 
 ## 备份与恢复
 

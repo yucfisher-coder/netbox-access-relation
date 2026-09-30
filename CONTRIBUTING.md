@@ -19,7 +19,7 @@ environment and start the development stack from the repository root:
 
 ```shell
 scripts/init-env
-scripts/dev
+scripts/dev up
 ```
 
 The plugin can also be installed in editable mode in a compatible NetBox

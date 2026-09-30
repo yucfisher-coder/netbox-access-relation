@@ -2,7 +2,7 @@
 
 | Plugin release | Minimum NetBox version | Maximum NetBox version | Python |
 | --- | --- | --- | --- |
-| 1.0.x | 4.7.0 | 4.7.x | >=3.12 |
+| 1.2.x | 4.7.0 | 4.7.x | >=3.12 |
 
 ## Policy
 
