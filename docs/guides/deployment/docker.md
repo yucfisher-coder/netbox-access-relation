@@ -46,9 +46,11 @@ docker build \
 ## 3. 创建数据卷并启动
 
 ```bash
-scripts/production init-volumes
-scripts/production up
-scripts/production status
+docker volume create netbox-access-relations-prod-postgres18-v1
+docker volume create netbox-access-relations-prod-media-v1
+docker volume create netbox-access-relations-prod-redis-v1
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
 Windows PowerShell 可直接执行对应的 `docker volume create` 和 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`；详见[Windows Docker Desktop 指南](windows-docker-desktop.md)。
@@ -65,13 +67,13 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec -T net
 ## 日常操作
 
 ```bash
-scripts/production status
-scripts/production logs
-scripts/production stop
-scripts/production up
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --follow
+docker compose --env-file .env.production -f docker-compose.prod.yml stop
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
-这些封装命令不会删除数据卷。不要运行 `docker compose down -v`，否则会删除数据库、附件或 Redis 持久化数据。
+不要运行 `docker compose --env-file .env.production -f docker-compose.prod.yml down -v`，否则会删除数据库、附件或 Redis 持久化数据。
 
 ## 升级与备份
 

@@ -146,7 +146,9 @@ openssl rand -base64 48   # 生成 64 字符随机字符串
 生产环境使用三个**外部 Docker 卷**，需先手动创建（生命周期独立于 Compose 项目）：
 
 ```bash
-scripts/production init-volumes
+docker volume create netbox-access-relations-prod-postgres18-v1
+docker volume create netbox-access-relations-prod-media-v1
+docker volume create netbox-access-relations-prod-redis-v1
 ```
 
 这会创建以下卷（名称可在 `.env.production` 中覆盖）：
@@ -158,13 +160,13 @@ scripts/production init-volumes
 启动全部服务：
 
 ```bash
-scripts/production up
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
 ### 4. 验证服务状态
 
 ```bash
-scripts/production status
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
 等待 `netbox` 变为 `healthy`（首次启动约 30–60 秒，需执行数据库迁移）。确认以下五个容器均健康：
@@ -180,7 +182,7 @@ scripts/production status
 查看启动日志：
 
 ```bash
-scripts/production logs
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --follow
 ```
 
 确认迁移已完成：
@@ -202,26 +204,7 @@ http://127.0.0.1:8000
 
 ## 四、日常运维命令
 
-所有命令在部署目录 `/opt/netbox-access-relations` 下执行。`scripts/production` 是安全封装，**不会**执行 `docker compose down -v`。
-
-```bash
-# 查看状态
-scripts/production status
-
-# 查看实时日志（可加服务名：logs netbox / logs worker）
-scripts/production logs
-
-# 停止服务（保留所有数据）
-scripts/production stop
-
-# 启动服务
-scripts/production up
-
-# 审核 Compose 配置展开结果
-scripts/production config
-```
-
-等价的原生 `docker compose` 命令（效果相同）：
+所有命令在部署目录 `/opt/netbox-access-relations` 下执行。使用原生 `docker compose`，并且**绝不**执行 `docker compose down -v`。
 
 ```bash
 COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
@@ -267,7 +250,7 @@ RESTORE_CONFIRM=restore-production-v1 \
 1. 在升级窗口前执行一次完整备份。
 2. 在同架构（amd64）联网构建机上验收新版本，生成新的离线部署包。
 3. 生产机校验新包、`docker load` 导入新镜像。
-4. `scripts/production stop` → 修改 `.env.production` 中 `NETBOX_PRODUCTION_IMAGE` 为新标签 → `scripts/production up`。
+4. `docker compose --env-file .env.production -f docker-compose.prod.yml stop` → 修改 `.env.production` 中 `NETBOX_PRODUCTION_IMAGE` 为新标签 → `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`。
 5. 等待健康，执行 `migrate --check` 和功能验收。
 
 如新版本含数据库迁移，须按该版本发布说明执行迁移验收，不能假定可逆。
@@ -275,13 +258,13 @@ RESTORE_CONFIRM=restore-production-v1 \
 ## 七、常见问题
 
 **Q: `docker compose` 提示找不到配置文件？**
-A: 必须在部署目录内执行，且使用 `-f docker-compose.prod.yml --env-file .env.production` 指定文件。`scripts/production` 封装已自动处理。
+A: 必须在部署目录内执行，且使用 `-f docker-compose.prod.yml --env-file .env.production` 指定文件。
 
 **Q: netbox 容器一直重启，日志显示数据库连接失败？**
 A: 检查 `postgres` 容器是否 healthy，`.env.production` 中 `DB_PASSWORD` 等是否与 postgres 容器初始化时一致。首次创建后修改密码不会自动生效，需重建卷。
 
 **Q: 如何修改监听端口？**
-A: 编辑 `.env.production` 中的 `NETBOX_HTTP_PORT`，然后 `scripts/production up` 重新创建容器。
+A: 编辑 `.env.production` 中的 `NETBOX_HTTP_PORT`，然后执行 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d` 重新创建容器。
 
 **Q: 如何确认当前镜像架构？**
 A: `docker image inspect netbox-access-relations:1.3.0 --format '{{.Architecture}}'` 应输出 `amd64`。

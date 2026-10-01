@@ -18,11 +18,11 @@ This plugin is developed in the repository's NetBox Docker environment
 environment and start the development stack from the repository root:
 
 ```shell
-scripts/init-env
-scripts/dev up
+cp .env.example .env
+docker compose up -d --build
 ```
 
-On Windows, use `.\deploy.ps1 init-env` followed by `docker compose up -d --build`; see `docs/guides/deployment/windows-docker-desktop.md` for the Windows workflow.
+On all supported development platforms, use Docker Compose directly; see `docs/guides/development.md` for the complete workflow.
 
 The plugin can also be installed in editable mode in a compatible NetBox
 development environment:

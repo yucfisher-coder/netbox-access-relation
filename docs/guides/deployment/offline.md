@@ -68,16 +68,17 @@ sudo chmod 0600 .env.production
 
 ```bash
 cd /opt/netbox-access-relations
-scripts/production init-volumes
-scripts/production config --quiet
-scripts/production up
-scripts/production status
+docker volume create netbox-access-relations-prod-postgres18-v1
+docker volume create netbox-access-relations-prod-media-v1
+docker volume create netbox-access-relations-prod-redis-v1
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 docker compose --env-file .env.production -f docker-compose.prod.yml ps
 docker compose --env-file .env.production -f docker-compose.prod.yml exec -T netbox \
   /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
 ```
 
-在 Compose 源文件和 `.env.production` 中复核：应用镜像是 `1.3.0`、端口仅为 `127.0.0.1`、三个 volume 均为 external。不要把 `docker compose config` 的完整输出保存到日志或工单，它可能展开密钥。确认 `netbox`、`worker`、`postgres`、`redis` 与 `redis-cache` 均健康后，经反向代理执行：登录、业务系统、访问策略、服务查询、区域矩阵四个入口；创建一个可撤销的测试对象；确认后台 worker 完成对应任务。将 `scripts/production status`、镜像 inspect 输出、迁移检查和人工验收结果作为本次发布证据保存。
+在 Compose 源文件和 `.env.production` 中复核：应用镜像是 `1.3.0`、端口仅为 `127.0.0.1`、三个 volume 均为 external。不要把 `docker compose config` 的完整输出保存到日志或工单，它可能展开密钥。确认 `netbox`、`worker`、`postgres`、`redis` 与 `redis-cache` 均健康后，经反向代理执行：登录、业务系统、访问策略、服务查询、区域矩阵四个入口；创建一个可撤销的测试对象；确认后台 worker 完成对应任务。将 `docker compose ... ps`、镜像 inspect 输出、迁移检查和人工验收结果作为本次发布证据保存。
 
 生产卷的默认名称分别为：
 
@@ -86,14 +87,14 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec -T net
 - `netbox-access-relations-prod-redis-v1`。
 
 PostgreSQL 主版本升级必须创建新代际卷，禁止把 PostgreSQL 18 数据目录直接挂载给其他主版本。
-普通停止使用 `scripts/production stop`；禁止执行 `docker compose down -v`。
+普通停止使用 `docker compose --env-file .env.production -f docker-compose.prod.yml stop`；禁止执行 `docker compose down -v`。
 
 ## 后续版本升级
 
 1. 在升级窗口前执行一次备份，并在隔离环境用该备份完成恢复演练。
 2. 在同架构联网构建机验收新版本，生成新的离线介质；不要在生产机执行 `scripts/release-build`。
-3. 在生产机校验新介质、`docker load` 导入镜像，并先以 `scripts/production config` 审核新 Compose 配置。
-4. 记录当前镜像标签与 `docker image inspect` 输出，执行 `scripts/production stop`，将 `.env.production` 中的 `NETBOX_PRODUCTION_IMAGE` 改为新标签，然后执行 `scripts/production up`。
+3. 在生产机校验新介质、`docker load` 导入镜像，并先以 `docker compose --env-file .env.production -f docker-compose.prod.yml config` 审核新 Compose 配置。
+4. 记录当前镜像标签与 `docker image inspect` 输出，执行 `docker compose --env-file .env.production -f docker-compose.prod.yml stop`，将 `.env.production` 中的 `NETBOX_PRODUCTION_IMAGE` 改为新标签，然后执行 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`。
 5. 等待服务健康，执行 `manage.py migrate --check`、登录与核心功能验收；如果新版本含迁移，须在发布说明定义并执行迁移验收，不能假定可逆。
 
 本次 `1.3.0` 包含 `0006_global_any_services` 迁移；升级后不可假定可直接切回 `1.2.x`。应用异常时只可切回与当前 schema 兼容的镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。

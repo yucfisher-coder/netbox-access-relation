@@ -49,16 +49,14 @@
 ## 快速开始：本地开发（Linux/macOS）
 
 ```bash
-scripts/init-env
-scripts/dev up
-scripts/dev logs
+cp .env.example .env
+docker compose up -d --build
+docker compose logs -f
 ```
 
-浏览器访问 `http://127.0.0.1:8000`。开发环境默认不创建超级用户；首次使用时运行 `docker compose exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py createsuperuser` 创建本地管理员账号。常用入口见 `scripts/dev help`。提交或里程碑前运行 `scripts/verify`，
-它构建一次镜像并执行完整基线验收。这些脚本不会执行
-`docker compose down -v`。首次启动前若尚无开发镜像，先运行一次 `scripts/build`（或直接 `docker compose up -d --build`）。
+浏览器访问 `http://127.0.0.1:8000`。开发环境默认不创建超级用户；首次使用时运行 `docker compose exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py createsuperuser` 创建本地管理员账号。提交或里程碑前运行 `scripts/verify` 执行完整基线验收。日常停止使用 `docker compose down`；不要使用 `docker compose down -v`。
 
-Windows 请使用 `.\deploy.ps1 init-env` 后直接运行 `docker compose up -d --build`；完整说明见[Windows Docker Desktop 部署指南](docs/guides/deployment/windows-docker-desktop.md)。平台支持边界见[兼容性矩阵](COMPATIBILITY.md)：Linux/macOS/Windows 均支持 Docker 开发；已验证的生产目标为 Linux `amd64` 与 Linux `arm64` Docker 主机。
+Linux、macOS 与 Windows Docker Desktop 均使用相同的 `docker compose` 命令；完整说明见[开发指南](docs/guides/development.md)与[Windows Docker Desktop 部署指南](docs/guides/deployment/windows-docker-desktop.md)。平台支持边界见[兼容性矩阵](COMPATIBILITY.md)：已验证的生产目标为 Linux `amd64` 与 Linux `arm64` Docker 主机。
 
 ## 快速开始：Docker 部署
 
@@ -68,15 +66,17 @@ Windows 请使用 `.\deploy.ps1 init-env` 后直接运行 `docker compose up -d 
 cp .env.production.example .env.production
 # 编辑 .env.production，填入域名与真实密钥
 docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.3.0 .
-scripts/production init-volumes
-scripts/production up
+docker volume create netbox-access-relations-prod-postgres18-v1
+docker volume create netbox-access-relations-prod-media-v1
+docker volume create netbox-access-relations-prod-redis-v1
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
 完整步骤、平台边界和升级注意事项见 [Docker 部署（默认路径）](docs/guides/deployment/docker.md)。只有隔离网络、合规审计或需要在目标机从源码构建时，才需要使用[严格离线部署](docs/guides/deployment/offline.md)。
 
 ## 注意事项
 
-`.env.example` 只包含占位值。`scripts/init-env` 在本地创建被 Git 忽略且权限为 `0600` 的 `.env`，不会把运行密钥写入仓库。
+`.env.example` 只包含占位值；复制为本地 `.env` 后填入运行密钥。`.env` 被 Git 忽略，不会进入仓库。
 
 ## CI/CD 与发布
 

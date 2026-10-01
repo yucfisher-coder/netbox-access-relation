@@ -8,19 +8,15 @@
 
 - Docker Engine 与 Docker Compose v2（Linux / macOS / Windows Docker Desktop 均可）。容器运行目标为 `linux/amd64` 或 `linux/arm64`；Windows 与 macOS 的支持指 Docker Desktop 开发环境，不等同于原生宿主服务部署。
 - 开发镜像在与本机一致的 CPU 架构上构建（amd64 或 arm64）。
-- Linux/macOS 用 `scripts/*`（bash）；Windows 可用根目录的 `deploy.ps1`、`scripts/windows/*.ps1`，或直接使用 `docker compose`。
-  三种入口都指向同一份根目录 Compose。
+- Linux、macOS 与 Windows Docker Desktop 都直接使用根目录的 `docker compose`；所有平台指向同一份 Compose 配置。
 
 ## 二、初始化环境变量
 
 `.env` 不入库，由脚本生成为权限 `0600` 的本地文件（含随机密钥）：
 
 ```bash
-scripts/init-env        # Linux/macOS
-```
-
-```powershell
-.\deploy.ps1 init-env   # Windows
+cp .env.example .env
+# 编辑 .env，替换所有 REPLACE_WITH_... 占位值
 ```
 
 脚本拒绝覆盖已存在的 `.env`。`.env.example` 仅为占位样例，请勿把真实密钥提交进仓库。
@@ -31,24 +27,20 @@ scripts/init-env        # Linux/macOS
 [`locks/images.md`](../../locks/images.md) 锁定的 digest，不匹配则中止：
 
 ```bash
-scripts/build
+docker compose build netbox
 ```
-
-Windows 等效：`.\deploy.ps1 build`。
 
 ## 四、启动与日常操作
 
 ```bash
-scripts/dev up          # 构建并后台启动（--build -d）
-scripts/dev ps          # 查看状态（默认子命令）
-scripts/dev logs        # 跟随日志
-scripts/dev stop        # 停止（保留数据卷）
-scripts/dev down        # 停止并移除容器（保留命名卷；本封装不提供 down -v）
-scripts/dev shell       # 进入 netbox 容器的 Django shell
-scripts/dev restart-worker
+docker compose up --build -d
+docker compose ps
+docker compose logs --follow
+docker compose stop
+docker compose down              # 保留命名卷
+docker compose exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py shell
+docker compose restart worker
 ```
-
-Windows 等效：`.\deploy.ps1 dev {up|stop|down|ps|logs}`。
 
 启动后浏览器访问 `http://127.0.0.1:8000`（端口由 `.env` 的 `NETBOX_HTTP_PORT` 控制，默认 8000）。
 
@@ -65,11 +57,13 @@ worker 等 netbox 健康后才启动，避免迁移竞态。
 
 ## 五、调试
 
-`scripts/dev debug` 以 debugpy 启动 netbox 并等待调试器连接（容器内 `0.0.0.0:5678`，
+以下命令以 debugpy 启动 netbox 并等待调试器连接（容器内 `0.0.0.0:5678`，
 映射到宿主机 `127.0.0.1:5678`）：
 
 ```bash
-scripts/dev debug
+docker compose run --rm --service-ports --entrypoint /opt/netbox/dev-entrypoint.sh netbox \
+  /opt/netbox/venv/bin/python -m debugpy --listen 0.0.0.0:5678 --wait-for-client \
+  /opt/netbox/netbox/manage.py runserver --noreload 0.0.0.0:8080
 ```
 
 ## 六、数据库迁移
@@ -78,8 +72,8 @@ scripts/dev debug
 涉及模型或约束变化的改动进入新的升级版本。
 
 ```bash
-scripts/dev makemigrations   # 生成迁移（写入 netbox_access_relations/migrations/）
-scripts/dev migrate          # 应用迁移
+docker compose exec netbox /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py makemigrations netbox_access_relations
+docker compose run --rm init /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate
 ```
 
 提交前务必确认没有遗漏的迁移：

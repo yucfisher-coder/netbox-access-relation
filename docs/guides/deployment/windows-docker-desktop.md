@@ -1,7 +1,7 @@
 # Windows Docker Desktop 部署指南
 
 本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.3.0）。普通 Docker 部署先阅读[Docker 部署（默认路径）](docker.md)；本页保留 Windows 特有命令和边界说明。
-项目根目录已提供标准的 `docker-compose.yml`（开发）和 `docker-compose.prod.yml`（生产），直接用 `docker compose` 命令即可运行，无需安装 Git Bash、WSL 或 openssl。`deploy.ps1` 只是可选的便捷封装。
+项目根目录已提供标准的 `docker-compose.yml`（开发）和 `docker-compose.prod.yml`（生产），直接用 `docker compose` 命令即可运行，无需安装 Git Bash、WSL 或额外脚本。
 
 > Windows Docker Desktop 是受支持的开发与评估环境；发布验证的生产目标是 Linux `amd64` 和 Linux `arm64` Docker 主机。Windows 主机运行的是 Docker 的 Linux 容器，不是原生 Windows NetBox 服务。
 
@@ -42,9 +42,8 @@
 在项目根目录 `f:\netbox-access-relation` 打开 PowerShell。根目录的 `docker-compose.yml` 会被 `docker compose` 自动识别，`.env` 也会被自动加载。
 
 ```powershell
-# 0.（首次）生成 .env 配置文件（含随机密钥）
-.\deploy.ps1 init-env
-#    或者手动: Copy-Item .env.example .env 然后编辑填入密钥
+# 0.（首次）创建 .env 配置文件并填入密钥
+Copy-Item .env.example .env
 
 # 1. 拉取并构建（首次或代码变更后）
 docker compose build
@@ -62,7 +61,6 @@ docker compose logs -f
 启动成功后，浏览器访问 **http://localhost:8000** 即可打开 NetBox。
 
 > 以上就是标准 Docker 用法，`docker compose` 自动读取当前目录的 `docker-compose.yml` 和 `.env`。
-> `.\deploy.ps1 dev up` 等命令只是对这些 `docker compose` 命令的封装，效果相同。
 
 ### 开发环境常用命令
 
@@ -147,11 +145,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ### 备份
 
 ```powershell
-# 备份到默认目录 .\backups\<时间戳>\
-.\deploy.ps1 backup
-
-# 或指定备份目录
-.\deploy.ps1 backup D:\netbox-backups
+ # 备份到指定目录
+.\scripts\windows\backup.ps1 D:\netbox-backups
 ```
 
 每个备份目录包含：
@@ -166,12 +161,12 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
 ```powershell
 $env:RESTORE_CONFIRM = 'restore-production-v1'
-.\deploy.ps1 restore D:\netbox-backups\20260926T120000Z
+.\scripts\windows\restore.ps1 D:\netbox-backups\20260926T120000Z
 ```
 
-## 五、手动 docker compose 命令
+## 五、Docker Compose 命令
 
-所有 `deploy.ps1` 命令均为 `docker compose` 的封装。如需直接操作，可在项目根目录执行：
+在项目根目录执行：
 
 ```powershell
 # 开发环境
@@ -205,19 +200,6 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
    docker compose up -d
    ```
 
-## 七、与 Linux 脚本的对应关系
+## 七、平台一致性
 
-| Linux 脚本 | Windows 等效 | 说明 |
-|-----------|-------------|------|
-| `docker-compose.yml` | `docker-compose.yml` | **根目录默认 compose 文件**，`docker compose` 自动识别（开发环境） |
-| `docker-compose.prod.yml` | `docker-compose.prod.yml` | 生产 compose，需 `-f docker-compose.prod.yml --env-file .env.production` |
-| `scripts/init-env` | `scripts/windows/init-env.ps1` / `.\deploy.ps1 init-env` | 用 .NET RNG 替代 openssl 生成密钥 |
-| `scripts/build` | `scripts/windows/build.ps1` | 校验锁定的基础镜像 digest 后构建 |
-| `scripts/dev` | `docker compose ...`（或 `scripts/windows/dev.ps1`） | 开发环境 up/down/logs/shell 等 |
-| `scripts/production` | `docker compose -f docker-compose.prod.yml ...`（或 `scripts/windows/production.ps1`） | 生产环境管理 |
-| `scripts/backup-production` | `scripts/windows/backup.ps1` | 备份数据库与 media |
-| `scripts/restore-production` | `scripts/windows/restore.ps1` | 恢复数据库与 media |
-| — | `deploy.ps1` | 可选便捷封装（内部即调用 docker compose） |
-
-开发与生产各只有一份 compose（根目录的 `docker-compose.yml` 与 `docker-compose.prod.yml`），bash 脚本与 PowerShell 封装都指向同一份文件，在 Linux 服务器、WSL 或 Git Bash 下均可使用。
-Windows 下推荐直接使用根目录的 compose 文件 + 标准 `docker compose` 命令。
+开发与生产各只有一份 Compose 配置（根目录的 `docker-compose.yml` 与 `docker-compose.prod.yml`）。Linux、macOS 与 Windows Docker Desktop 都使用标准 `docker compose` 命令。

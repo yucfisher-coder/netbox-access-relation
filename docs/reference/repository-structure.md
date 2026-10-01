@@ -23,7 +23,6 @@ netbox-access-relation/
 ├── .github/workflows/      CI 与发布流水线
 ├── docker-compose.yml      开发环境 Compose（唯一来源）
 ├── docker-compose.prod.yml 生产环境 Compose（唯一来源）
-├── deploy.ps1              Windows 便捷封装（可选，内部即调用 docker compose）
 ├── .env.example            开发环境变量样例
 └── .env.production.example 生产环境变量样例
 ```
@@ -90,6 +89,7 @@ netbox-access-relation/                 ← 发行根（distribution root）
 
 | 脚本 | 产物 / 作用 |
 |---|---|
+| `scripts/_release-common.sh` | 发布构建的版本、镜像和架构公共配置及校验函数 |
 | `scripts/build` | 校验基础镜像 digest 后构建开发镜像 `netbox-access-relations-dev:local` |
 | `scripts/release-build` | 构建生产镜像 `netbox-access-relations:<version>` |
 | `scripts/release-package` | 生成 `dist/offline-release-<version>/`（含已构建镜像的离线包） |
