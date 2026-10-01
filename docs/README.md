@@ -11,8 +11,9 @@
 | `requirements-map.md` | 开发切片需要读取哪些最小文档集合 | 需求正文、实现差距、测试结论 |
 | `ui-requirements.md`、`ui/` | 页面如何组织和交互 | 后端实现状态、测试结果 |
 | `acceptance/*.md` | 满足需求必须通过哪些可观察场景 | 当前是否通过、如何实现 |
+| `docker-deployment.md` | 默认联网 Docker 部署 | 严格离线交付、需求正文、业务规则 |
 | `linux-amd64-offline-deployment.md`、`windows-docker-desktop-deployment.md` | 如何按平台部署 | 需求正文、业务规则 |
-| `production-deployment.md` | 如何部署、备份、恢复与迁移 | 需求正文、业务规则 |
+| `production-deployment.md` | 严格离线部署、备份、恢复与迁移 | 需求正文、业务规则 |
 | `code-structure.md` | 仓库与代码放在哪、从哪里读起 | 设计动机、操作步骤 |
 | `development.md` | 如何在本地跑起来、改代码、调试、验收 | 生产部署、需求正文 |
 

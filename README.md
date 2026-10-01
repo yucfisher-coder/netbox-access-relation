@@ -28,9 +28,10 @@
 - [贡献指南](CONTRIBUTING.md)
 
 ### 部署
-- [Linux x86_64 (amd64) 离线部署指南](docs/linux-amd64-offline-deployment.md)
+- [Docker 部署（默认路径）](docs/docker-deployment.md)
+- [严格离线部署、备份、恢复与迁移](docs/production-deployment.md)
 - [Windows Docker Desktop 部署指南](docs/windows-docker-desktop-deployment.md)
-- [生产部署、备份、恢复与迁移（完整版）](docs/production-deployment.md)
+- [Linux x86_64 (amd64) 严格离线部署指南](docs/linux-amd64-offline-deployment.md)
 
 ### 发布
 - [离线源码构建发布脚本](scripts/release-source-package)
@@ -44,7 +45,7 @@
 - [1.0.1 发布说明](docs/releases/1.0.1.md)
 - [1.0.0 发布说明](docs/releases/1.0.0.md)
 
-## 快速开始（Linux/macOS）
+## 快速开始：本地开发（Linux/macOS）
 
 ```bash
 scripts/init-env
@@ -57,6 +58,20 @@ scripts/dev logs
 `docker compose down -v`。首次启动前若尚无开发镜像，先运行一次 `scripts/build`（或直接 `docker compose up -d --build`）。
 
 Windows 请使用 `.\deploy.ps1 init-env` 后直接运行 `docker compose up -d --build`；完整说明见[Windows Docker Desktop 部署指南](docs/windows-docker-desktop-deployment.md)。平台支持边界见[兼容性矩阵](COMPATIBILITY.md)：Linux/macOS/Windows 均支持 Docker 开发；已验证的生产目标为 Linux `amd64` 与 Linux `arm64` Docker 主机。
+
+## 快速开始：Docker 部署
+
+大多数部署只需在可联网的 Docker 主机上构建本项目的应用镜像，再以生产 Compose 启动服务：
+
+```bash
+cp .env.production.example .env.production
+# 编辑 .env.production，填入域名与真实密钥
+docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.3.0 .
+scripts/production init-volumes
+scripts/production up
+```
+
+完整步骤、平台边界和升级注意事项见 [Docker 部署（默认路径）](docs/docker-deployment.md)。只有隔离网络、合规审计或需要在目标机从源码构建时，才需要使用[严格离线部署](docs/production-deployment.md)。
 
 ## 注意事项
 

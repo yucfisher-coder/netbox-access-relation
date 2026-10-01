@@ -1,6 +1,6 @@
 # Windows Docker Desktop 部署指南
 
-本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.3.0）。
+本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.3.0）。普通 Docker 部署先阅读[Docker 部署（默认路径）](docker-deployment.md)；本页保留 Windows 特有命令和边界说明。
 项目根目录已提供标准的 `docker-compose.yml`（开发）和 `docker-compose.prod.yml`（生产），直接用 `docker compose` 命令即可运行，无需安装 Git Bash、WSL 或 openssl。`deploy.ps1` 只是可选的便捷封装。
 
 > Windows Docker Desktop 是受支持的开发与评估环境；发布验证的生产目标是 Linux `amd64` 和 Linux `arm64` Docker 主机。Windows 主机运行的是 Docker 的 Linux 容器，不是原生 Windows NetBox 服务。
