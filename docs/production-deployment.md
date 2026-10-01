@@ -1,7 +1,7 @@
 # 生产离线部署、升级与恢复
 
-本文适用于 `1.2.1` 的人工离线部署。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0005`；
-本版本不包含迁移。不要把开发目录、真实密钥、数据库备份或业务工作簿放入发布介质。
+本文适用于 `1.3.0` 的人工离线部署。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0006`；
+本版本包含 ANY 语义迁移。不要把开发目录、真实密钥、数据库备份或业务工作簿放入发布介质。
 
 > 按平台的快速部署指南：[Linux x86_64 (amd64) 离线部署](linux-amd64-offline-deployment.md) ｜
 > [Windows Docker Desktop 部署](windows-docker-desktop-deployment.md)。本文是覆盖备份、恢复与升级的完整手册；其中的生产主机步骤仅适用于已验证的 Linux Docker 主机。
@@ -96,7 +96,7 @@ PostgreSQL 主版本升级必须创建新代际卷，禁止把 PostgreSQL 18 数
 4. 记录当前镜像标签与 `docker image inspect` 输出，执行 `scripts/production stop`，将 `.env.production` 中的 `NETBOX_PRODUCTION_IMAGE` 改为新标签，然后执行 `scripts/production up`。
 5. 等待服务健康，执行 `manage.py migrate --check`、登录与核心功能验收；如果新版本含迁移，须在发布说明定义并执行迁移验收，不能假定可逆。
 
-本次 `1.2.1` 没有迁移，且与 `1.0.0` 结构基线兼容。应用异常时只可切回与当前 schema 兼容的旧镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。
+本次 `1.3.0` 包含 `0006_global_any_services` 迁移；升级后不可假定可直接切回 `1.2.x`。应用异常时只可切回与当前 schema 兼容的镜像；涉及数据库或 media 的回退必须使用升级前备份恢复。不得删除、重建或跨 PostgreSQL 主版本复用生产卷。
 
 ## 备份与恢复
 

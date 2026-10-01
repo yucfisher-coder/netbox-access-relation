@@ -5,6 +5,21 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-01
+
+### Added
+
+- 服务查询按相同协议与端口表达式聚合，展示关联目标系统和访问关系，并支持当前筛选结果导出。
+- ANY 统一为覆盖全部 TCP/UDP 端口的全协议服务；新增迁移 `0006_global_any_services` 规范化既有 ANY 记录并限制每条访问关系只有一个 ANY。
+
+### Changed
+
+- 访问关系编辑、详情、列表和 XLSX 导入模板统一使用全协议 ANY 语义；导入 ANY 时协议列可留空。
+
+### Notes
+
+- 从 1.2.x 升级必须执行 `manage.py migrate`，再重启 NetBox web 与 worker。
+
 ## [1.2.1] - 2026-09-30
 
 ### Fixed

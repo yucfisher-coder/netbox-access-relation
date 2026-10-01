@@ -26,7 +26,7 @@ def service_key(protocol, is_any, port_start, port_end) -> tuple:
     means.
     """
     if is_any:
-        return (protocol, True, None, None)
+        return (None, True, None, None)
     return (protocol, False, port_start, port_end)
 
 

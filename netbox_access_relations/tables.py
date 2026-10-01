@@ -215,6 +215,9 @@ class PolicyServiceTable(NetBoxTable):
             return "ANY"
         return "单端口" if record.port_start == record.port_end else "端口范围"
 
+    def render_protocol(self, record):
+        return record.protocol_display
+
     def render_overlap_count(self, record):
         queryset = PolicyService.objects.all()
         request = getattr(self, "request", None)

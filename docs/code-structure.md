@@ -55,7 +55,7 @@ netbox-access-relation/                 ← 发行根（distribution root）
 └── netbox_access_relations/            ← 可导入的 Python 包（Django app）
     ├── __init__.py                     PluginConfig 声明（入口，见下）
     ├── models.py                       五个数据模型
-    ├── migrations/                     数据库迁移（基线 0001～0005）
+    ├── migrations/                     数据库迁移（基线 0001～0006）
     ├── views.py / urls.py              Web 视图与路由
     ├── forms.py / tables.py / filtersets.py  列表页、表单、查询过滤
     ├── navigation.py / ui/panels.py    侧边栏菜单、详情页面板

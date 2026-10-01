@@ -1,3 +1,78 @@
-{% extends 'generic/object_list.html' %}
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
 
 {% block title %}服务查询{% endblock %}
+
+{% block head %}
+  {{ block.super }}
+  <style>
+    .service-query-filter .filter-field > .mb-3 { height: 100%; margin-bottom: 0 !important; }
+    .service-query-filter .filter-field label {
+      display: flex;
+      min-height: 1.5rem;
+      align-items: flex-end;
+      margin-bottom: .5rem;
+    }
+    .service-query-filter .filter-actions { display: flex; gap: .5rem; }
+    .service-query-filter .filter-actions .btn {
+      height: calc(1.5em + .75rem + 2px);
+      display: inline-flex;
+      align-items: center;
+    }
+    .service-query-targets { width: 45%; line-height: 1.5; }
+    .service-query-policies { line-height: 1.5; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col">
+      <div class="card">
+        <div class="card-header"><strong>筛选服务表达式</strong></div>
+        <div class="card-body">
+          <form method="get" class="row g-3 service-query-filter">
+            <div class="col-12 col-md-3 filter-field">{% render_field filter_form.protocol %}</div>
+            <div class="col-12 col-md-3 filter-field">{% render_field filter_form.port %}</div>
+            <div class="col-12 col-md-3 filter-actions">
+              <button class="btn btn-primary" type="submit">查询</button>
+              <a class="btn btn-outline-secondary" href="{{ request.path }}">清除</a>
+            </div>
+          </form>
+          {% if filter_errors %}<div class="alert alert-danger mt-3 mb-0">请修正筛选条件后重新查询。</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>相同协议与端口关联的目标系统</strong>
+      <div><span class="text-secondary me-3">{{ group_count }} 个服务表达式</span><a class="btn btn-sm btn-outline-secondary" href="?{% if query %}{{ query }}&amp;{% endif %}export=csv">导出 CSV</a></div>
+    </div>
+    {% if groups %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>协议</th><th>端口</th><th class="service-query-targets">关联目标系统</th><th>访问关系</th></tr></thead>
+          <tbody>
+            {% for group in groups %}
+              <tr>
+                <td>{{ group.protocol }}</td>
+                <td><code>{{ group.port }}</code></td>
+                <td class="service-query-targets">{% for system in group.target_systems %}<a href="{{ system.get_absolute_url }}">{{ system }}</a>{% if not forloop.last %}<span class="text-secondary">、</span>{% endif %}{% endfor %}<span class="text-secondary small">（{{ group.target_system_count }} 个）</span></td>
+                <td class="service-query-policies">{% for policy in group.policies %}<a href="{{ policy.get_absolute_url }}">{{ policy }}</a>{% if not forloop.last %}<span class="text-secondary">、</span>{% endif %}{% endfor %}<span class="text-secondary small">（{{ group.policy_count }} 条）</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.has_other_pages %}
+        <div class="card-body border-top d-flex justify-content-between align-items-center">
+          <span class="text-secondary">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span>
+          <div>{% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">上一页</a>{% endif %}{% if page_obj.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">下一页</a>{% endif %}</div>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="card-body text-secondary">没有符合当前筛选条件的服务表达式。</div>
+    {% endif %}
+  </div>
+{% endblock %}

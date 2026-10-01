@@ -65,7 +65,7 @@ POLICY_FIELD_GUIDE = (
     ("访问关系", "source_system / target_system", "填写已有业务系统的规范名或已确认别名；匹配忽略大小写但必须精确。", "Billing / CRM"),
     ("访问关系", "valid_from / valid_until", "可选；ISO 8601 时间，失效时间必须晚于生效时间。", "2026-01-01T00:00:00+08:00"),
     ("服务项", "policy_name", "必须精确引用本工作簿“访问关系”工作表中的关系名称。", "Billing to CRM"),
-    ("服务项", "protocol", "必填；tcp 或 udp。", "tcp"),
+    ("服务项", "protocol", "destination_port 为 ANY 时可留空且内容会被忽略；其他情况必填 tcp 或 udp。", "tcp"),
     ("服务项", "destination_port", "必填；ANY、单端口（443）或闭区间（8000-8080）。", "443"),
 )
 
@@ -117,7 +117,7 @@ def build_template(kind):
     info.append(("导入流程", "填写数据后上传并预检；只有全部错误修正后才能确认，确认时整个工作簿在一个事务中写入。"))
     info.append(("名称关联", "业务系统、系统别名和系统地址通过 system_name 关联；别名和地址工作表中的 system_name 必须填写规范名。访问关系可按规范名或已确认别名匹配已有系统。"))
     if kind == "policies":
-        info.append(("服务项", "destination_port 仅接受 ANY、单端口（443）或闭区间（8000-8080）。每个访问关系至少一项。"))
+        info.append(("服务项", "destination_port 仅接受 ANY、单端口（443）或闭区间（8000-8080）。ANY 覆盖全部 TCP/UDP 端口，protocol 可留空且会被忽略。每个访问关系至少一项。"))
     guide = workbook.create_sheet("字段说明")
     guide.append(("工作表", "字段", "填写规则", "示例"))
     for row in SYSTEM_FIELD_GUIDE if kind == "systems" else POLICY_FIELD_GUIDE:
@@ -131,6 +131,7 @@ def build_template(kind):
         examples.append(("访问关系", "HTTPS 访问", "Billing to CRM | integration | BILL | CRM | [留空] | [留空] | 账单调用 CRM | [留空]"))
         examples.append(("服务项", "单端口", "Billing to CRM | tcp | 443"))
         examples.append(("服务项", "端口范围", "Billing to CRM | tcp | 8000-8080"))
+        examples.append(("服务项", "全协议 ANY", "Billing to CRM | [留空] | ANY"))
     for name, headers in sheets.items():
         sheet = workbook.create_sheet(name)
         sheet.append(headers)
@@ -500,22 +501,23 @@ def _preview_policies(parsed, plan, user):
         if key not in pending:
             _error(plan, "服务项", row, "policy_name", name, "必须引用本工作簿中新增的访问关系。")
             continue
-        protocol = str(data.get("protocol") or "").lower()
-        if protocol not in {"tcp", "udp"}:
-            _error(plan, "服务项", row, "protocol", protocol, "仅允许 tcp 或 udp。")
-            continue
         try:
             is_any, start, end = _parse_port(data.get("destination_port"))
         except ValueError as exc:
             _error(plan, "服务项", row, "destination_port", data.get("destination_port"), str(exc))
             continue
-        service_key = (protocol, is_any, start, end)
+        protocol = str(data.get("protocol") or "").lower()
+        if not is_any and protocol not in {"tcp", "udp"}:
+            _error(plan, "服务项", row, "protocol", protocol, "非 ANY 服务仅允许 tcp 或 udp。")
+            continue
+        service_key = (None if is_any else protocol, is_any, start, end)
         if service_key in services.setdefault(key, set()):
             _error(plan, "服务项", row, "destination_port", data.get("destination_port"), "同一访问关系内服务项重复。")
             continue
         services[key].add(service_key)
-        enriched = {**data, "protocol": protocol, "is_any": is_any, "port_start": start, "port_end": end}
-        plan.rows.append(PlanRow("服务项", row, "create_service", f"{name}：{protocol.upper()}/{data.get('destination_port')}", enriched))
+        enriched = {**data, "protocol": "tcp" if is_any else protocol, "is_any": is_any, "port_start": start, "port_end": end}
+        display = "ANY" if is_any else f"{protocol.upper()}/{data.get('destination_port')}"
+        plan.rows.append(PlanRow("服务项", row, "create_service", f"{name}：{display}", enriched))
     for key, data in pending.items():
         if not services.get(key):
             _error(plan, "服务项", 0, "policy_name", data["policy_name"], "每个访问关系至少需要一个服务项。")

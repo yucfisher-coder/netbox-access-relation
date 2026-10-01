@@ -78,9 +78,24 @@ class ApplicationSystemFilterForm(LocalizedStandardFieldsMixin, PrimaryModelFilt
 
 
 class PolicyServiceInlineForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
+    protocol = forms.ChoiceField(choices=TransportProtocolChoices, required=False, label=_('Protocol'))
+    is_any = forms.BooleanField(
+        required=False,
+        label="全协议 ANY",
+        help_text="覆盖所有 TCP 和 UDP 端口。",
+    )
+
     class Meta:
         model = PolicyService
-        fields = ("protocol", "is_any", "port_start", "port_end")
+        fields = ("is_any", "protocol", "port_start", "port_end")
+
+    def clean(self):
+        cleaned = super().clean() or self.cleaned_data
+        if cleaned.get("is_any"):
+            cleaned["protocol"] = TransportProtocolChoices.TCP
+        elif not cleaned.get("protocol"):
+            self.add_error("protocol", _("Protocol is required unless the service is ANY."))
+        return cleaned
 
 
 class BasePolicyServiceInlineFormSet(BaseInlineFormSet):
@@ -101,7 +116,7 @@ class BasePolicyServiceInlineFormSet(BaseInlineFormSet):
             protocol = form.cleaned_data.get("protocol")
             is_any = form.cleaned_data.get("is_any", False)
             key = (
-                protocol,
+                None if is_any else protocol,
                 is_any,
                 None if is_any else form.cleaned_data.get("port_start"),
                 None if is_any else form.cleaned_data.get("port_end"),

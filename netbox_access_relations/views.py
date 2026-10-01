@@ -2,6 +2,7 @@
 
 from functools import partial
 import base64
+import csv
 from itertools import chain
 import logging
 
@@ -12,6 +13,7 @@ from django.core import signing
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.db.models import Q
+from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views import View
@@ -516,18 +518,90 @@ class AccessPolicyDeleteView(generic.ObjectDeleteView):
 
 
 @register_model_view(PolicyService, "list", path="", detail=False)
-class PolicyServiceListView(ExcelCompatibleCsvExportMixin, generic.ObjectListView):
-    queryset = PolicyService.objects.select_related("policy", "policy__source_system", "policy__target_system")
+class PolicyServiceListView(PermissionRequiredMixin, View):
+    """Read-only, protocol/port-centred view across access policies."""
+
+    permission_required = ("netbox_access_relations.view_policyservice",)
     template_name = "netbox_access_relations/service_query.html"
-    filterset = filtersets.PolicyServiceFilterSet
-    filterset_form = forms.PolicyServiceFilterForm
-    table = tables.PolicyServiceTable
-    actions = (BulkExport,)
 
     def get_queryset(self, request):
-        queryset = super().get_queryset(request).restrict(request.user, "view")
+        queryset = PolicyService.objects.select_related(
+            "policy", "policy__source_system", "policy__target_system"
+        ).restrict(request.user, "view")
         visible_policies = AccessPolicy.objects.restrict(request.user, "view").values("pk")
         return queryset.filter(policy_id__in=visible_policies)
+
+    @staticmethod
+    def group_services(services):
+        """Group identical service expressions and retain their policy context."""
+        groups = {}
+        for service in services:
+            key = (None, True, None, None) if service.is_any else (
+                service.protocol, False, service.port_start, service.port_end
+            )
+            group = groups.setdefault(key, {
+                "protocol": "TCP/UDP" if service.is_any else service.get_protocol_display().upper(),
+                "port": str(service.port_display),
+                "policies": [],
+                "target_systems": [],
+                "_policy_ids": set(),
+                "_target_ids": set(),
+            })
+            if service.policy_id not in group["_policy_ids"]:
+                group["policies"].append(service.policy)
+                group["_policy_ids"].add(service.policy_id)
+            if service.policy.target_system_id not in group["_target_ids"]:
+                group["target_systems"].append(service.policy.target_system)
+                group["_target_ids"].add(service.policy.target_system_id)
+        for group in groups.values():
+            group["policies"].sort(key=lambda policy: (policy.name.casefold(), policy.pk))
+            group["target_systems"].sort(key=lambda system: (system.name.casefold(), system.pk))
+            group["policy_count"] = len(group["policies"])
+            group["target_system_count"] = len(group["target_systems"])
+            del group["_policy_ids"]
+            del group["_target_ids"]
+        return sorted(groups.values(), key=lambda group: (group["protocol"], group["port"]))
+
+    def get(self, request):
+        filter_form = forms.PolicyServiceFilterForm(request.GET)
+        restrict_form_fields(filter_form, request.user)
+        filterset = filtersets.PolicyServiceFilterSet(request.GET, queryset=self.get_queryset(request))
+        services = filterset.qs if filter_form.is_valid() and filterset.form.is_valid() else filterset.queryset.none()
+        groups = self.group_services(services)
+        if request.GET.get("export") == "csv":
+            return self.export_groups(groups)
+
+        paginator = Paginator(groups, 50)
+        page_obj = paginator.get_page(request.GET.get("page"))
+        params = request.GET.copy()
+        params.pop("page", None)
+        params.pop("export", None)
+        return render(request, self.template_name, {
+            "title": "服务查询",
+            "filter_form": filter_form,
+            "filter_errors": filter_form.errors or filterset.form.errors,
+            "page_obj": page_obj,
+            "groups": page_obj.object_list,
+            "group_count": len(groups),
+            "query": params.urlencode(),
+        })
+
+    @staticmethod
+    def export_groups(groups):
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="service-query.csv"'
+        response.write("\ufeff")
+        writer = csv.writer(response)
+        writer.writerow(["协议", "端口", "关联目标系统数", "目标系统", "访问关系"])
+        for group in groups:
+            writer.writerow([
+                group["protocol"],
+                group["port"],
+                group["target_system_count"],
+                "、".join(system.name for system in group["target_systems"]),
+                "、".join(policy.name for policy in group["policies"]),
+            ])
+        return response
 
 
 

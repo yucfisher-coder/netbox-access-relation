@@ -11,12 +11,15 @@
   {% endif %}
   {% include 'htmx/form.html' %}
 
+  <style>
+    #policy-services .service-header-copy { min-width: 0; }
+  </style>
   <div class="field-group mb-5" id="policy-services">
     <div class="row mb-3">
-      <div class="col-9 offset-3 d-flex align-items-center justify-content-between">
-        <div>
+      <div class="col-12 col-xl-9 offset-xl-3 d-flex flex-wrap align-items-center gap-3">
+        <div class="service-header-copy flex-grow-1">
           <h2 class="mb-1">{% trans "Policy services" %}</h2>
-          <div class="text-secondary">{% trans "Add one or more TCP or UDP services. Use ANY without port values." %}</div>
+          <div class="text-secondary">添加 TCP、UDP 服务或一个覆盖全部 TCP/UDP 端口的 ANY；ANY 不需要选择协议或填写端口。</div>
         </div>
         <button type="button" class="btn btn-outline-primary" id="add-policy-service">
           <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add service" %}
@@ -38,7 +41,7 @@
         <div class="policy-service-form border rounded p-3 mb-3">
           {% for hidden in service_form.hidden_fields %}{{ hidden }}{% endfor %}
           {% for field in service_form.visible_fields %}
-            {% if field.name != "DELETE" %}{% render_field field %}{% endif %}
+            {% if field.name == "protocol" %}<div class="service-protocol-field">{% render_field field %}</div>{% elif field.name == "port_start" or field.name == "port_end" %}<div class="service-port-field">{% render_field field %}</div>{% elif field.name != "DELETE" %}{% render_field field %}{% endif %}
           {% endfor %}
           <span class="d-none">{{ service_form.DELETE }}</span>
           <button type="button" class="btn btn-outline-danger remove-policy-service">
@@ -52,7 +55,7 @@
       <div class="policy-service-form border rounded p-3 mb-3">
         {% for hidden in form.service_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
         {% for field in form.service_formset.empty_form.visible_fields %}
-          {% if field.name != "DELETE" %}{% render_field field %}{% endif %}
+          {% if field.name == "protocol" %}<div class="service-protocol-field">{% render_field field %}</div>{% elif field.name == "port_start" or field.name == "port_end" %}<div class="service-port-field">{% render_field field %}</div>{% elif field.name != "DELETE" %}{% render_field field %}{% endif %}
         {% endfor %}
         <span class="d-none">{{ form.service_formset.empty_form.DELETE }}</span>
         <button type="button" class="btn btn-outline-danger remove-policy-service">
@@ -80,13 +83,47 @@
         });
       };
 
+      const updateAnyFields = (serviceForm) => {
+        const anyField = serviceForm.querySelector('input[name$="-is_any"]');
+        const protocolField = serviceForm.querySelector('select[name$="-protocol"]');
+        if (!anyField || !protocolField) return;
+        const protocolGroup = serviceForm.querySelector('.service-protocol-field');
+        const portGroups = serviceForm.querySelectorAll('.service-port-field');
+        if (anyField.checked) {
+          protocolField.value = 'tcp';
+          protocolField.disabled = true;
+          protocolGroup?.classList.add('d-none');
+          portGroups.forEach((group) => {
+            const field = group.querySelector('input');
+            field.value = '';
+            field.disabled = true;
+            group.classList.add('d-none');
+          });
+        } else {
+          protocolField.disabled = false;
+          protocolGroup?.classList.remove('d-none');
+          portGroups.forEach((group) => {
+            const field = group.querySelector('input');
+            field.disabled = false;
+            group.classList.remove('d-none');
+          });
+        }
+      };
+
+      const updateAllAnyFields = () => container.querySelectorAll('.policy-service-form').forEach(updateAnyFields);
+
       addButton.addEventListener('click', () => {
         const index = Number.parseInt(totalForms.value, 10);
         const wrapper = document.createElement('div');
         wrapper.innerHTML = template.innerHTML.replaceAll('__prefix__', index);
         container.appendChild(wrapper.firstElementChild);
         totalForms.value = index + 1;
+        updateAllAnyFields();
         updateRemoveButtons();
+      });
+
+      container.addEventListener('change', (event) => {
+        if (event.target.matches('input[name$="-is_any"]')) updateAnyFields(event.target.closest('.policy-service-form'));
       });
 
       container.addEventListener('click', (event) => {
@@ -99,6 +136,7 @@
         updateRemoveButtons();
       });
 
+      updateAllAnyFields();
       updateRemoveButtons();
     });
   </script>

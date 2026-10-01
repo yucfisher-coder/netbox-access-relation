@@ -36,5 +36,5 @@ class AccessPolicyPanel(panels.ObjectAttributesPanel):
 
 class PolicyServicePanel(panels.ObjectAttributesPanel):
     policy = attrs.RelatedObjectAttr("policy", linkify=True, label=_("Access policy"))
-    protocol = attrs.ChoiceAttr("protocol", label=_("Protocol"))
+    protocol = attrs.TextAttr("protocol_display", label=_("Protocol"))
     port_display = attrs.TextAttr("port_display", label=_("Destination port"))

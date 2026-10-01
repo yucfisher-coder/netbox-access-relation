@@ -112,7 +112,7 @@ class AccessPolicyFilterSet(PrimaryModelFilterSet):
         return queryset.filter(Q(source_system_id__in=values) | Q(target_system_id__in=values))
 
     def filter_protocol(self, queryset, name, values):
-        query = Q(services__protocol__in=values)
+        query = Q(services__is_any=True) | Q(services__protocol__in=values)
         port = self.form.cleaned_data.get("port")
         if port is not None:
             query &= Q(services__is_any=True) | Q(services__port_start__lte=port, services__port_end__gte=port)
@@ -201,7 +201,7 @@ class PolicyServiceFilterSet(NetBoxModelFilterSet):
     source_system_id = MultiValueNumberFilter(field_name="policy__source_system_id")
     target_system_id = MultiValueNumberFilter(field_name="policy__target_system_id")
     system_id = MultiValueNumberFilter(method="filter_system")
-    protocol = django_filters.MultipleChoiceFilter(choices=TransportProtocolChoices)
+    protocol = django_filters.MultipleChoiceFilter(method="filter_protocol", choices=TransportProtocolChoices)
     port = django_filters.NumberFilter(method="filter_port")
     port_start = django_filters.NumberFilter(method="filter_port_start")
     port_end = django_filters.NumberFilter(method="filter_port_end")
@@ -213,6 +213,11 @@ class PolicyServiceFilterSet(NetBoxModelFilterSet):
 
     def filter_port(self, queryset, name, value):
         return queryset.filter(Q(is_any=True) | Q(port_start__lte=value, port_end__gte=value))
+
+    def filter_protocol(self, queryset, name, values):
+        # ANY is protocol-agnostic and therefore remains visible for either
+        # TCP or UDP queries, including legacy rows stored as UDP/ANY.
+        return queryset.filter(Q(is_any=True) | Q(protocol__in=values))
 
     def filter_port_start(self, queryset, name, value):
         return queryset

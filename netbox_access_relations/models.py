@@ -379,9 +379,9 @@ class PolicyService(NetBoxModel):
                 violation_error_message=_("Use ANY or a port range between 1 and 65535."),
             ),
             models.UniqueConstraint(
-                fields=("policy", "protocol"),
+                fields=("policy",),
                 condition=models.Q(is_any=True),
-                name="accessrel_policyservice_unique_any",
+                name="accessrel_policyservice_single_any",
             ),
             models.UniqueConstraint(
                 fields=("policy", "protocol", "port_start", "port_end"),
@@ -395,6 +395,9 @@ class PolicyService(NetBoxModel):
         if self.is_any:
             if self.port_start is not None or self.port_end is not None:
                 raise ValidationError(_("ANY services must not specify ports."))
+            # ANY covers every TCP and UDP destination port. Persist a single
+            # canonical protocol only because the legacy schema requires it.
+            self.protocol = TransportProtocolChoices.TCP
         elif self.port_start is None or self.port_end is None:
             raise ValidationError(_("A non-ANY service requires both port values."))
         elif not 1 <= self.port_start <= self.port_end <= 65535:
@@ -403,16 +406,20 @@ class PolicyService(NetBoxModel):
     @property
     def port_display(self):
         if self.is_any:
-            return _("ANY")
+            return "ANY"
         if self.port_start == self.port_end:
             return str(self.port_start)
         return f"{self.port_start}-{self.port_end}"
 
+    @property
+    def protocol_display(self):
+        return "TCP/UDP" if self.is_any else self.get_protocol_display().upper()
+
     def overlaps(self, other):
-        if self.protocol != other.protocol:
-            return False
         if self.is_any or other.is_any:
             return True
+        if self.protocol != other.protocol:
+            return False
         return self.port_start <= other.port_end and other.port_start <= self.port_end
 
     @property
@@ -421,13 +428,13 @@ class PolicyService(NetBoxModel):
 
     def overlap_count_in(self, queryset):
         """Count overlapping policies within an already permission-scoped queryset."""
-        query = queryset.exclude(pk=self.pk).filter(protocol=self.protocol)
+        query = queryset.exclude(pk=self.pk)
         if not self.is_any:
             query = query.filter(
                 models.Q(is_any=True)
-                | models.Q(port_start__lte=self.port_end, port_end__gte=self.port_start)
+                | models.Q(protocol=self.protocol, port_start__lte=self.port_end, port_end__gte=self.port_start)
             )
         return query.exclude(policy_id=self.policy_id).values("policy_id").distinct().count()
 
     def __str__(self):
-        return f"{self.get_protocol_display().upper()}/{self.port_display}"
+        return str(self.port_display) if self.is_any else f"{self.get_protocol_display().upper()}/{self.port_display}"
