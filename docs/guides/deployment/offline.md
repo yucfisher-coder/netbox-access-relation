@@ -1,16 +1,16 @@
 # 严格离线生产部署、升级与恢复
 
-本文适用于 `1.3.0` 的人工严格离线部署：生产主机不能访问网络，或组织要求由目标机从源码重建应用镜像。普通可联网 Docker 部署请先阅读[Docker 部署（默认路径）](docker-deployment.md)。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0006`；
+本文适用于 `1.3.0` 的人工严格离线部署：生产主机不能访问网络，或组织要求由目标机从源码重建应用镜像。普通可联网 Docker 部署请先阅读[Docker 部署（默认路径）](docker.md)。首个生产版本为 `1.0.0`，数据结构基线为迁移 `0001`～`0006`；
 本版本包含 ANY 语义迁移。不要把开发目录、真实密钥、数据库备份或业务工作簿放入发布介质。
 
-> 按平台的快速部署指南：[Linux x86_64 (amd64) 离线部署](linux-amd64-offline-deployment.md) ｜
-> [Windows Docker Desktop 部署](windows-docker-desktop-deployment.md)。本文是覆盖备份、恢复与升级的完整手册；其中的生产主机步骤仅适用于已验证的 Linux Docker 主机。
+> 按平台的快速部署指南：[Linux x86_64 (amd64) 离线部署](linux-amd64-offline.md) ｜
+> [Windows Docker Desktop 部署](windows-docker-desktop.md)。本文是覆盖备份、恢复与升级的完整手册；其中的生产主机步骤仅适用于已验证的 Linux Docker 主机。
 
 ## 部署前提与边界
 
 - 目标主机为 Linux，安装与目标 CPU 架构一致的 Docker Engine 和 Docker Compose v2；操作账户可使用 Docker。
 - 生产主机不需要、也不应访问互联网。所有镜像和 Python 依赖在联网的受控构建机完成验证后导入。
-- 发布固定为 NetBox `4.7.0` / netbox-docker `5.1.1`、PostgreSQL `18.6-alpine`、Redis `7.4.11-alpine`。各 OCI digest 见 [`locks/images.md`](../locks/images.md)。
+- 发布固定为 NetBox `4.7.0` / netbox-docker `5.1.1`、PostgreSQL `18.6-alpine`、Redis `7.4.11-alpine`。各 OCI digest 见 [`locks/images.md`](../../../locks/images.md)。
 - Compose 仅把 HTTP 绑定到 `127.0.0.1:8000`；由同机反向代理终结 TLS 并转发流量。不要直接暴露 PostgreSQL 或 Redis。
 
 ## 在联网构建机制作并验收介质

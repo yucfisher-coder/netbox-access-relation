@@ -18,20 +18,21 @@
 ## 文档索引
 
 ### 需求与设计
-- [当前需求确认稿](docs/requirements.md)
-- [系统架构与设计](docs/architecture.md)
+- [当前需求确认稿](docs/requirements/README.md)
+- [系统架构与设计](docs/explanation/architecture.md)
 
 ### 开发与结构
-- [代码结构说明](docs/code-structure.md)
-- [本地开发指南](docs/development.md)
+- [代码结构说明](docs/reference/repository-structure.md)
+- [本地开发指南](docs/guides/development.md)
 - [兼容性矩阵](COMPATIBILITY.md)
 - [贡献指南](CONTRIBUTING.md)
+- [文档规范](docs/standards/documentation.md)
 
 ### 部署
-- [Docker 部署（默认路径）](docs/docker-deployment.md)
-- [严格离线部署、备份、恢复与迁移](docs/production-deployment.md)
-- [Windows Docker Desktop 部署指南](docs/windows-docker-desktop-deployment.md)
-- [Linux x86_64 (amd64) 严格离线部署指南](docs/linux-amd64-offline-deployment.md)
+- [Docker 部署（默认路径）](docs/guides/deployment/docker.md)
+- [严格离线部署、备份、恢复与迁移](docs/guides/deployment/offline.md)
+- [Windows Docker Desktop 部署指南](docs/guides/deployment/windows-docker-desktop.md)
+- [Linux x86_64 (amd64) 严格离线部署指南](docs/guides/deployment/linux-amd64-offline.md)
 
 ### 发布
 - [离线源码构建发布脚本](scripts/release-source-package)
@@ -57,7 +58,7 @@ scripts/dev logs
 它构建一次镜像并执行完整基线验收。这些脚本不会执行
 `docker compose down -v`。首次启动前若尚无开发镜像，先运行一次 `scripts/build`（或直接 `docker compose up -d --build`）。
 
-Windows 请使用 `.\deploy.ps1 init-env` 后直接运行 `docker compose up -d --build`；完整说明见[Windows Docker Desktop 部署指南](docs/windows-docker-desktop-deployment.md)。平台支持边界见[兼容性矩阵](COMPATIBILITY.md)：Linux/macOS/Windows 均支持 Docker 开发；已验证的生产目标为 Linux `amd64` 与 Linux `arm64` Docker 主机。
+Windows 请使用 `.\deploy.ps1 init-env` 后直接运行 `docker compose up -d --build`；完整说明见[Windows Docker Desktop 部署指南](docs/guides/deployment/windows-docker-desktop.md)。平台支持边界见[兼容性矩阵](COMPATIBILITY.md)：Linux/macOS/Windows 均支持 Docker 开发；已验证的生产目标为 Linux `amd64` 与 Linux `arm64` Docker 主机。
 
 ## 快速开始：Docker 部署
 
@@ -71,7 +72,7 @@ scripts/production init-volumes
 scripts/production up
 ```
 
-完整步骤、平台边界和升级注意事项见 [Docker 部署（默认路径）](docs/docker-deployment.md)。只有隔离网络、合规审计或需要在目标机从源码构建时，才需要使用[严格离线部署](docs/production-deployment.md)。
+完整步骤、平台边界和升级注意事项见 [Docker 部署（默认路径）](docs/guides/deployment/docker.md)。只有隔离网络、合规审计或需要在目标机从源码构建时，才需要使用[严格离线部署](docs/guides/deployment/offline.md)。
 
 ## 注意事项
 

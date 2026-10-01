@@ -1,6 +1,6 @@
 # Windows Docker Desktop 部署指南
 
-本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.3.0）。普通 Docker 部署先阅读[Docker 部署（默认路径）](docker-deployment.md)；本页保留 Windows 特有命令和边界说明。
+本文介绍如何在 **Windows + Docker Desktop** 环境下开发、评估或运行本项目（NetBox 访问关系插件 v1.3.0）。普通 Docker 部署先阅读[Docker 部署（默认路径）](docker.md)；本页保留 Windows 特有命令和边界说明。
 项目根目录已提供标准的 `docker-compose.yml`（开发）和 `docker-compose.prod.yml`（生产），直接用 `docker compose` 命令即可运行，无需安装 Git Bash、WSL 或 openssl。`deploy.ps1` 只是可选的便捷封装。
 
 > Windows Docker Desktop 是受支持的开发与评估环境；发布验证的生产目标是 Linux `amd64` 和 Linux `arm64` Docker 主机。Windows 主机运行的是 Docker 的 Linux 容器，不是原生 Windows NetBox 服务。
@@ -10,7 +10,7 @@
 本项目同时兼容 **linux/amd64** 和 **linux/arm64** 的 Docker 环境（含 Apple Silicon、ARM 服务器、x86 服务器），无需为不同架构修改配置：
 
 - 所有基础镜像（NetBox、PostgreSQL、Redis、Python）在 `docker-compose.yml`、`docker-compose.prod.yml` 和 `docker/Dockerfile.*` 中均引用 **OCI 多架构清单（index digest）**，Docker 会自动拉取与本机 CPU 架构匹配的变体，无需手动指定 `platform`。
-- 镜像与锁定 digest 见 [locks/images.md](../locks/images.md)，其中列出了每个镜像的 amd64 与 arm64 变体。
+- 镜像与锁定 digest 见 [locks/images.md](../../../locks/images.md)，其中列出了每个镜像的 amd64 与 arm64 变体。
 - 开发镜像、生产镜像在两种架构上均按本机原生构建：在 x86 机器上 `docker compose build` 得到 amd64 镜像，在 ARM 机器上得到 arm64 镜像。
 - 生产离线部署需在**与目标主机相同架构**的机器上构建镜像归档（不要用 ARM 机为 x86 生产环境制作镜像，反之亦然）。
 - 本项目不强制指定 `platform`，因此在 Docker Desktop（含 WSL2 后端）上默认为本机架构运行。

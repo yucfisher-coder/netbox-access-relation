@@ -2,7 +2,7 @@
 
 本文是本项目面向大多数用户的部署入口：在可访问镜像仓库和 PyPI 的 Docker 主机上，构建一个包含插件的 NetBox 应用镜像，再由 Compose 启动 NetBox、PostgreSQL 和 Redis。
 
-这不是离线部署流程。需要隔离网络、可审计源码构建或通过移动介质交付时，请使用[严格离线部署](production-deployment.md)。
+这不是离线部署流程。需要隔离网络、可审计源码构建或通过移动介质交付时，请使用[严格离线部署](offline.md)。
 
 ## 适用范围
 
@@ -39,7 +39,7 @@ docker build \
   .
 ```
 
-这个镜像以锁定的 NetBox `v4.7.0-5.1.1` 为基础，并将本插件及其运行时 Python 依赖装入镜像。构建时 Docker 会按需取得 NetBox 和 Python 构建镜像；Compose 启动时会取得锁定的 PostgreSQL 和 Redis 镜像。基础镜像 digest 见 [`locks/images.md`](../locks/images.md)。
+这个镜像以锁定的 NetBox `v4.7.0-5.1.1` 为基础，并将本插件及其运行时 Python 依赖装入镜像。构建时 Docker 会按需取得 NetBox 和 Python 构建镜像；Compose 启动时会取得锁定的 PostgreSQL 和 Redis 镜像。基础镜像 digest 见 [`locks/images.md`](../../../locks/images.md)。
 
 如果使用不同的应用镜像标签，必须同步设置 `.env.production` 的 `NETBOX_PRODUCTION_IMAGE`。
 
@@ -51,7 +51,7 @@ scripts/production up
 scripts/production status
 ```
 
-Windows PowerShell 可直接执行对应的 `docker volume create` 和 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`；详见[Windows Docker Desktop 指南](windows-docker-desktop-deployment.md)。
+Windows PowerShell 可直接执行对应的 `docker volume create` 和 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`；详见[Windows Docker Desktop 指南](windows-docker-desktop.md)。
 
 首次启动时等待 `netbox` 变为 `healthy`，再确认迁移状态：
 
@@ -75,4 +75,4 @@ scripts/production up
 
 ## 升级与备份
 
-升级前先备份并在隔离环境演练恢复。完整的备份、恢复、迁移和严格离线交付说明见[生产部署、备份、恢复与迁移](production-deployment.md)。
+升级前先备份并在隔离环境演练恢复。完整的备份、恢复、迁移和严格离线交付说明见[严格离线部署、备份、恢复与迁移](offline.md)。

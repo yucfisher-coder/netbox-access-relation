@@ -1,8 +1,8 @@
 # 本地开发指南
 
 本文档说明如何在本地把插件跑起来、改代码、调试和做提交前验收。面向插件开发者。
-生产部署、备份与恢复见 [`production-deployment.md`](production-deployment.md)；
-目录结构与各文件职责见 [`code-structure.md`](code-structure.md)。
+生产部署、备份与恢复见 [`deployment/offline.md`](deployment/offline.md)；
+目录结构与各文件职责见 [`../reference/repository-structure.md`](../reference/repository-structure.md)。
 
 ## 一、前置条件
 
@@ -28,7 +28,7 @@ scripts/init-env        # Linux/macOS
 ## 三、构建开发镜像
 
 首次启动或基础镜像变更后，构建一次开发镜像。脚本会先校验本地基础镜像是否匹配
-[`locks/images.md`](../locks/images.md) 锁定的 digest，不匹配则中止：
+[`locks/images.md`](../../locks/images.md) 锁定的 digest，不匹配则中止：
 
 ```bash
 scripts/build
@@ -54,8 +54,8 @@ Windows 等效：`.\deploy.ps1 dev {up|stop|down|ps|logs}`。
 
 ### 工作原理
 
-开发镜像 [`docker/Dockerfile.dev`](../docker/Dockerfile.dev) 基于官方 NetBox 镜像，
-入口 [`docker/dev-entrypoint.sh`](../docker/dev-entrypoint.sh) 以**可编辑模式**安装插件
+开发镜像 [`docker/Dockerfile.dev`](../../docker/Dockerfile.dev) 基于官方 NetBox 镜像，
+入口 [`docker/dev-entrypoint.sh`](../../docker/dev-entrypoint.sh) 以**可编辑模式**安装插件
 （`uv pip install --editable`），并把仓库根的发行元数据及 `netbox_access_relations`
 源码挂载进容器。
 因此改 Python 代码后，`runserver` 会自动重载，无需重建镜像。
@@ -124,7 +124,7 @@ scripts/release-package      # 生成 dist/offline-release-<version>/（含已�
 scripts/release-source-package  # 生成 dist/offline-source-release-<version>/（源码包）
 ```
 
-离线介质的制作与目标机部署流程见 [`production-deployment.md`](production-deployment.md)。
+离线介质的制作与目标机部署流程见 [`deployment/offline.md`](deployment/offline.md)。
 注意：生产离线镜像归档必须在与目标主机相同 CPU 架构的机器上制作。
 
 ## 九、提交规范

@@ -2,7 +2,7 @@
 
 本文档是**仓库导航**：说明每个目录和关键文件的职责，以及从哪里入手阅读或修改代码。
 它回答"东西放在哪、怎么找到"；设计动机、数据模型和核心流程见
-[`architecture.md`](architecture.md)，两者不重复。
+[`../explanation/architecture.md`](../explanation/architecture.md)，两者不重复。
 
 ## 一、仓库整体布局
 
@@ -74,17 +74,17 @@ netbox-access-relation/                 ← 发行根（distribution root）
 
 从哪里读起：
 
-1. **插件入口**：[`netbox_access_relations/__init__.py`](../netbox_access_relations/__init__.py)
+1. **插件入口**：[`netbox_access_relations/__init__.py`](../../netbox_access_relations/__init__.py)
    定义 `AccessRelationsConfig`（`name`、`base_url=access-relations`、版本兼容区间），并在 `ready()`
    中连接信号。NetBox 通过它发现并加载插件。
-2. **数据模型**：[`models.py`](../netbox_access_relations/models.py)
+2. **数据模型**：[`models.py`](../../netbox_access_relations/models.py)
    定义 `ApplicationSystem` / `SystemAlias` / `SystemAddress` / `AccessPolicy` / `PolicyService`。
-3. **业务逻辑**：[`services/`](../netbox_access_relations/services) 是
+3. **业务逻辑**：[`services/`](../../netbox_access_relations/services) 是
    纯业务层，不依赖 HTTP。新增逻辑优先放这里，再由 Web/API/导入调用，保证行为一致。
 4. **写入入口**：数据有三个写入路径——Web 表单（`forms.py`）、工作簿导入（`services/workbook_import.py`）、
    REST API（`api/`）。涉及唯一性等共享校验时，三处都要调用同一处服务层逻辑。
-5. **配置挂载**：开发时 [`config/plugins.py`](../config/plugins.py) 被只读挂载进容器启用插件；
-   生产镜像则在 [`docker/Dockerfile.prod`](../docker/Dockerfile.prod) 中内置该配置。
+5. **配置挂载**：开发时 [`config/plugins.py`](../../config/plugins.py) 被只读挂载进容器启用插件；
+   生产镜像则在 [`docker/Dockerfile.prod`](../../docker/Dockerfile.prod) 中内置该配置。
 
 ## 五、构建与产物
 
@@ -96,11 +96,11 @@ netbox-access-relation/                 ← 发行根（distribution root）
 | `scripts/release-source-package` | 生成 `dist/offline-source-release-<version>/`（源码 + wheelhouse，目标机构建） |
 | `scripts/verify` | 本地基线验收：Compose 校验、镜像构建、插件装入验证、迁移无漂移检查 |
 
-`dist/` 为构建产物，不入库。镜像与依赖的锁定值见 [`locks/`](../locks)。
+`dist/` 为构建产物，不入库。镜像与依赖的锁定值见 [`locks/`](../../locks)。
 
 ## 六、阅读路径建议
 
-- 想理解**为什么这样设计** → `architecture.md`
-- 想**跑起来开发** → `development.md`
-- 想**部署到生产 / 备份恢复** → `production-deployment.md`
+- 想理解**为什么这样设计** → `../explanation/architecture.md`
+- 想**跑起来开发** → `../guides/development.md`
+- 想**部署到生产 / 备份恢复** → `../guides/deployment/offline.md`
 - 想知道**每个目录是干什么的** → 本文档

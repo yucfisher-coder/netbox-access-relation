@@ -3,7 +3,7 @@
 本文面向 **Linux x86_64 / amd64** 服务器的**严格离线生产部署**。全程不需要生产服务器访问互联网，
 所有镜像和依赖在联网构建机上预先打包。当前版本 `1.3.0`；从 1.2.x 升级时须执行 `0006_global_any_services` 迁移。
 
-> 如果需要从旧环境迁移数据，部署完成后参见 [生产部署、备份、恢复与迁移](production-deployment.md)。
+> 如果需要从旧环境迁移数据，部署完成后参见 [严格离线部署、备份、恢复与迁移](offline.md)。
 > ARM64 部署请在 ARM 构建机上制作介质，流程相同但镜像架构不同。
 
 ## 一、前提条件
@@ -42,7 +42,7 @@ docker image inspect netboxcommunity/netbox:v4.7.0-5.1.1 \
 ```
 
 应包含 `@sha256:1685e91c61bb4050089db2bb1603718820ae3ce0b266d4d069ff7c682f5d9c58`。
-PostgreSQL 和 Redis 的锁定 digest 见 [locks/images.md](../locks/images.md)。
+PostgreSQL 和 Redis 的锁定 digest 见 [locks/images.md](../../../locks/images.md)。
 
 ### 2. 构建生产镜像并打包
 
@@ -72,7 +72,7 @@ dist/offline-release-1.3.0/
 │   ├── backup-production   # 备份脚本
 │   └── restore-production  # 恢复脚本
 ├── docs/
-│   └── production-deployment.md
+│   └── offline.md
 └── locks/
     └── images.md
 ```
@@ -260,7 +260,7 @@ RESTORE_CONFIRM=restore-production-v1 \
 ```
 
 > NetBox 4.7 依赖 PostgreSQL `ltree` 扩展。`scripts/restore-production` 已自动处理重建扩展。
-> 手工恢复命令见 [生产部署、备份、恢复与迁移](production-deployment.md) 的“手工恢复（新环境）”一节。
+> 手工恢复命令见 [严格离线部署、备份、恢复与迁移](offline.md) 的“手工恢复（新环境）”一节。
 
 ## 六、升级
 

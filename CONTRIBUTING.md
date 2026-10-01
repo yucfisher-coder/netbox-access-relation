@@ -22,7 +22,7 @@ scripts/init-env
 scripts/dev up
 ```
 
-On Windows, use `.\deploy.ps1 init-env` followed by `docker compose up -d --build`; see `docs/windows-docker-desktop-deployment.md` for the Windows workflow.
+On Windows, use `.\deploy.ps1 init-env` followed by `docker compose up -d --build`; see `docs/guides/deployment/windows-docker-desktop.md` for the Windows workflow.
 
 The plugin can also be installed in editable mode in a compatible NetBox
 development environment:
@@ -50,6 +50,7 @@ migrations after release.
   modules.
 - Preserve NetBox object permissions and change logging on every write path.
 - Keep commits focused and explain user-visible or operational effects.
+- Follow [`docs/standards/documentation.md`](docs/standards/documentation.md) when adding or changing documentation.
 
 ## Pull requests
 
