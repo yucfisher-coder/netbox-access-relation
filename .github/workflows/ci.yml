@@ -57,6 +57,7 @@ jobs:
           echo "Built: $whl"
           unzip -l "$whl" | grep -q 'netbox-plugin.yaml' || { echo 'netbox-plugin.yaml missing from wheel'; exit 1; }
           unzip -l "$whl" | grep -q 'templates/.*\.html' || { echo 'templates missing from wheel'; exit 1; }
+          ! unzip -l "$whl" | grep -q '/tests/' || { echo 'development tests must not be packaged'; exit 1; }
           echo "Wheel contents OK."
 
   # Build the dev image to verify the Dockerfile and pinned base image pull.
@@ -71,3 +72,18 @@ jobs:
 
       - name: Build dev image
         run: docker compose --env-file .env -f docker-compose.yml build netbox
+
+  django-tests:
+    name: Django regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate env file from example
+        run: cp .env.example .env
+
+      - name: Build test image
+        run: docker compose --env-file .env -f docker-compose.yml build netbox
+
+      - name: Run plugin regression tests
+        run: scripts/test

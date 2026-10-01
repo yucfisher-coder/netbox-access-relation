@@ -90,6 +90,19 @@ scripts/verify
 
 `verify` 会在干净库上执行 `makemigrations --check --dry-run`，确保迁移文件与模型一致。
 
+### 自动化回归测试
+
+执行以下命令运行 Django 回归测试：
+
+```bash
+scripts/test
+```
+
+测试代码位于仓库根目录的 `tests/`，只挂载到开发 Compose 容器；它不属于 Python 插件包，生产
+Dockerfile 也不会复制它。CI 会运行该测试，并校验 wheel 中不包含测试目录。
+测试数据库使用独立的 `test_netbox` 数据库并以 `--keepdb` 复用，避免每次本地执行都重新迁移完整
+NetBox；首次运行和 CI 仍会从空测试数据库创建。
+
 ## 七、提交前验收
 
 `scripts/verify` 是本地完整基线验收，依次：
@@ -97,7 +110,7 @@ scripts/verify
 1. 校验开发与生产两份 Compose 配置可正常展开；
 2. 构建开发镜像与生产镜像；
 3. 断言生产镜像内插件版本正确、且无残留的可编辑安装或临时 wheel；
-4. 启动依赖服务并检查迁移无漂移。
+4. 启动依赖服务，检查迁移无漂移并运行 Django 回归测试。
 
 全部通过才输出 `Baseline verification passed.`。该脚本**不会**执行 `docker compose down -v`。
 

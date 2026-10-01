@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Test modules live outside the distributable package and are mounted only by
+# docker-compose.yml. This keeps both the wheel and the production image free
+# of development test code.
+dev_compose_cmd up --detach postgres redis redis-cache init
+NETBOX_DEBUG=false dev_compose_cmd run --rm --no-deps init \
+  /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py test tests --keepdb --verbosity 2

@@ -25,13 +25,16 @@ x-netbox: &netbox
     DB_SSLMODE: disable
     REDIS_HOST: redis
     REDIS_CACHE_HOST: redis-cache
-    DEBUG: "true"
+    DEBUG: ${NETBOX_DEBUG:-true}
     DEVELOPER: "true"
+    # External test modules are mounted only by the development Compose stack.
+    PYTHONPATH: /opt/netbox
   volumes:
     # 挂载发行元数据和 Django app；容器以 editable 模式安装该插件。
     - ./pyproject.toml:/plugin/pyproject.toml:ro
     - ./README.md:/plugin/README.md:ro
     - ./netbox_access_relations:/plugin/netbox_access_relations:rw
+    - ./tests:/opt/netbox/tests:ro
     - ./config/plugins.py:/etc/netbox/config/plugins.py:ro
     - media:/opt/netbox/netbox/media:rw
   entrypoint:

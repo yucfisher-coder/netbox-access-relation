@@ -8,5 +8,6 @@ include netbox_access_relations/netbox-plugin.yaml
 recursive-include netbox_access_relations/locale *.mo *.po
 recursive-include netbox_access_relations/static *
 recursive-include netbox_access_relations/templates *.html
+prune tests
 global-exclude *.py[cod]
 global-exclude __pycache__

@@ -3,6 +3,7 @@
 .secrets
 backups
 private-data
+tests
 dist
 *.sql
 *.sql.gz

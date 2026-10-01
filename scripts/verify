@@ -5,7 +5,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 require_env
 
 docker compose --env-file "${env_file}" -f "${dev_compose}" config --quiet
-PRODUCTION_ENV_FILE="../.env.production.example" docker compose \
+PRODUCTION_ENV_FILE="${repo_root}/.env.production.example" docker compose \
   --env-file "${repo_root}/.env.production.example" -f "${production_compose}" config --quiet
 "${repo_root}/scripts/build"
 "${repo_root}/scripts/release-build"
@@ -19,5 +19,6 @@ dev_compose_cmd up --detach postgres redis redis-cache init
 dev_compose_cmd run --rm --no-deps init \
   /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py makemigrations \
   netbox_access_relations --check --dry-run
+"${repo_root}/scripts/test"
 
 echo "Baseline verification passed."
