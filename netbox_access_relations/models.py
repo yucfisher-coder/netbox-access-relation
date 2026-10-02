@@ -422,6 +422,19 @@ class PolicyService(NetBoxModel):
             return False
         return self.port_start <= other.port_end and other.port_start <= self.port_end
 
+    def delete(self, *args, **kwargs):
+        """Do not allow ordinary deletes to leave a policy without services.
+
+        Deleting the parent AccessPolicy is still valid: Django's cascade
+        collector removes children directly rather than through this method.
+        """
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=using):
+            policy = AccessPolicy.objects.using(using).select_for_update().get(pk=self.policy_id)
+            if PolicyService.objects.using(using).select_for_update().filter(policy=policy).count() <= 1:
+                raise ValidationError(_("An access policy requires at least one service."))
+            return super().delete(*args, **kwargs)
+
     @property
     def overlap_count(self):
         return self.overlap_count_in(PolicyService.objects.all())

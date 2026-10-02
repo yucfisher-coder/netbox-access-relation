@@ -4,6 +4,6 @@
 
 | ID | 需求 |
 |---|---|
-| REQ-SCOPE-001 | 目标平台为 NetBox Community 4.7.0 独立插件，不修改 NetBox 核心，不 monkey patch。 |
+| REQ-SCOPE-001 | 目标平台为 NetBox Community 4.7.2 独立插件，不修改 NetBox 核心，不 monkey patch。 |
 | REQ-SCOPE-002 | 首期只管理安全区域证据、业务系统及地址、访问关系、服务项、导入导出和查询。 |
 | REQ-SCOPE-003 | 首期不包含防火墙下发、NAT、路由/路径计算、访问日志或独立前端应用。 |

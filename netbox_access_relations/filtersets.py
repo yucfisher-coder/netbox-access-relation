@@ -36,6 +36,11 @@ def _system_matches_ip(system, value):
     )
 
 
+def _iter_policies_in_chunks(queryset):
+    """Keep expensive Python-only policy filters from retaining every row."""
+    return queryset.iterator(chunk_size=200)
+
+
 class ApplicationSystemFilterSet(PrimaryModelFilterSet):
     status = django_filters.MultipleChoiceFilter(choices=ActiveStatusChoices)
     is_co_located = django_filters.BooleanFilter()
@@ -171,9 +176,14 @@ class AccessPolicyFilterSet(PrimaryModelFilterSet):
             "target_system__addresses__ip_address", "target_system__addresses__ip_range",
         )
         matching = []
-        for policy in queryset:
-            source_keys = {bucket.key for bucket in system_zone_buckets(policy.source_system)}
-            target_keys = {bucket.key for bucket in system_zone_buckets(policy.target_system)}
+        bucket_cache = {}
+        def zone_keys(system):
+            if system.pk not in bucket_cache:
+                bucket_cache[system.pk] = {bucket.key for bucket in system_zone_buckets(system)}
+            return bucket_cache[system.pk]
+        for policy in _iter_policies_in_chunks(queryset):
+            source_keys = zone_keys(policy.source_system)
+            target_keys = zone_keys(policy.target_system)
             if source and source not in source_keys:
                 continue
             if target and target not in target_keys:
@@ -189,9 +199,14 @@ class AccessPolicyFilterSet(PrimaryModelFilterSet):
             "source_system__addresses__ip_range", "target_system__addresses__prefix",
             "target_system__addresses__ip_address", "target_system__addresses__ip_range",
         )
+        matches_cache = {}
+        def matches(system):
+            if system.pk not in matches_cache:
+                matches_cache[system.pk] = _system_matches_ip(system, value)
+            return matches_cache[system.pk]
         matching = [
-            policy.pk for policy in queryset
-            if _system_matches_ip(policy.source_system, value) or _system_matches_ip(policy.target_system, value)
+            policy.pk for policy in _iter_policies_in_chunks(queryset)
+            if matches(policy.source_system) or matches(policy.target_system)
         ]
         return queryset.filter(pk__in=matching)
 

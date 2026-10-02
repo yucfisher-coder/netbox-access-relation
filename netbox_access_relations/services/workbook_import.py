@@ -11,12 +11,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
 from ipaddress import ip_address, ip_interface, ip_network
+from zipfile import ZipFile
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from ipam.models import IPAddress, IPRange, Prefix, VRF
 from netbox.config import get_config
+from utilities.exceptions import PermissionsViolation
 from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.styles import Font, PatternFill
@@ -27,6 +29,11 @@ from .policy_uniqueness import find_duplicate_policies
 
 
 TEMPLATE_VERSION = "1.0"
+MAX_WORKBOOK_ARCHIVE_MEMBERS = 2_000
+MAX_WORKBOOK_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_WORKBOOK_MEMBER_BYTES = 20 * 1024 * 1024
+MAX_WORKBOOK_DATA_ROWS_PER_SHEET = 10_000
+MAX_WORKBOOK_CELL_CHARACTERS = 10_000
 SYSTEM_SHEETS = {
     "业务系统": ("system_name", "status", "description", "comments"),
     "系统别名": ("system_name", "alias"),
@@ -168,6 +175,7 @@ def build_template(kind):
 def preview_workbook(content, kind, user):
     plan = ImportPlan(kind=kind)
     try:
+        _validate_workbook_archive(content)
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     except Exception as exc:
         plan.errors.append(Issue("工作簿", 0, "file", "", f"无法读取 XLSX 文件：{exc}"))
@@ -186,6 +194,19 @@ def preview_workbook(content, kind, user):
     return plan
 
 
+def _validate_workbook_archive(content):
+    """Reject ZIP bombs before openpyxl starts decompressing the workbook."""
+    with ZipFile(BytesIO(content)) as archive:
+        members = archive.infolist()
+        if len(members) > MAX_WORKBOOK_ARCHIVE_MEMBERS:
+            raise ValueError("XLSX 包含过多文件。")
+        total_size = sum(member.file_size for member in members)
+        if total_size > MAX_WORKBOOK_UNCOMPRESSED_BYTES:
+            raise ValueError("XLSX 解压后的内容超过 50 MB 限制。")
+        if any(member.file_size > MAX_WORKBOOK_MEMBER_BYTES for member in members):
+            raise ValueError("XLSX 包含超过 20 MB 的单个文件。")
+
+
 def apply_workbook(content, kind, user):
     """Re-preview immediately before applying, then commit the entire plan."""
     with transaction.atomic():
@@ -195,7 +216,7 @@ def apply_workbook(content, kind, user):
         if kind == "systems":
             _apply_systems(plan, user)
         else:
-            _apply_policies(plan)
+            _apply_policies(plan, user)
     return plan
 
 
@@ -222,6 +243,12 @@ def _read_sheet(workbook, name, expected_headers, plan):
         return []
     rows = []
     for number, values in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        if number > MAX_WORKBOOK_DATA_ROWS_PER_SHEET + 1:
+            _error(plan, name, number, "row", "", f"单个工作表最多允许 {MAX_WORKBOOK_DATA_ROWS_PER_SHEET} 行数据。")
+            break
+        if any(isinstance(value, str) and len(value) > MAX_WORKBOOK_CELL_CHARACTERS for value in values):
+            _error(plan, name, number, "cell", "", f"单元格文本不得超过 {MAX_WORKBOOK_CELL_CHARACTERS} 个字符。")
+            continue
         if not any(value not in (None, "") for value in values):
             continue
         rows.append((number, {header: _clean(value) for header, value in zip(headers, values)}))
@@ -263,18 +290,15 @@ def _preview_systems(parsed, plan, user):
         if key in pending:
             _error(plan, "业务系统", row, "system_name", name, "工作簿中规范名重复。")
             continue
-        existing = ApplicationSystem.objects.filter(name__iexact=name).first()
-        alias_conflict = SystemAlias.objects.filter(name__iexact=name).exists()
+        existing = ApplicationSystem.objects.restrict(user, "view").filter(name__iexact=name).first()
+        alias_conflict = SystemAlias.objects.restrict(user, "view").filter(name__iexact=name).exists()
         if alias_conflict:
             _error(plan, "业务系统", row, "system_name", name, "名称已被系统别名占用。")
         elif status not in ActiveStatusChoices.values:
             _error(plan, "业务系统", row, "status", status, "状态仅允许 active 或 inactive。")
         elif existing:
-            if not ApplicationSystem.objects.restrict(user, "view").filter(pk=existing.pk).exists():
-                _error(plan, "业务系统", row, "system_name", name, "对象不存在或无权查看。")
-            else:
-                pending[key] = existing
-                plan.rows.append(PlanRow("业务系统", row, "skip", f"已存在：{name}", {**data, "existing_id": existing.pk}))
+            pending[key] = existing
+            plan.rows.append(PlanRow("业务系统", row, "skip", f"已存在：{name}", {**data, "existing_id": existing.pk}))
         else:
             marker = {"pending_name": name}
             pending[key] = marker
@@ -292,11 +316,11 @@ def _preview_systems(parsed, plan, user):
             _error(plan, "系统别名", row, "alias", alias, "不能为空。")
         elif key in seen_aliases:
             _error(plan, "系统别名", row, "alias", alias, "工作簿中别名重复。")
-        elif ApplicationSystem.objects.filter(name__iexact=alias).exists():
+        elif ApplicationSystem.objects.restrict(user, "view").filter(name__iexact=alias).exists():
             _error(plan, "系统别名", row, "alias", alias, "别名与规范名冲突。")
         else:
             seen_aliases.add(key)
-            existing = SystemAlias.objects.filter(name__iexact=alias).first()
+            existing = SystemAlias.objects.restrict(user, "view").filter(name__iexact=alias).first()
             system_name = system.get("pending_name") if isinstance(system, dict) else system.name
             if existing and not isinstance(system, dict) and existing.system_id == system.pk:
                 plan.rows.append(PlanRow("系统别名", row, "skip", f"已关联别名：{alias}", data))
@@ -588,10 +612,12 @@ def _apply_systems(plan, user):
         if row.action == "create_system":
             obj = ApplicationSystem(name=data["system_name"], status=data.get("status") or "active", description=data.get("description") or "", comments=data.get("comments") or "")
             obj.full_clean(); obj.save()
+            _require_add_permission(obj, user)
             systems[obj.name.casefold()] = obj
         elif row.action == "create_alias":
             obj = SystemAlias(system=systems[str(data["system_name"]).casefold()], name=data["alias"])
             obj.full_clean(); obj.save()
+            _require_add_permission(obj, user)
         elif row.action in {"link_address", "create_address"}:
             system = systems[str(data["system_name"]).casefold()]
             native_type = data["object_type"]
@@ -600,23 +626,32 @@ def _apply_systems(plan, user):
                 native = model.objects.get(pk=data["native_id"])
                 address = SystemAddress(system=system, **{native_type: native})
                 address.full_clean(); address.save()
+                _require_add_permission(address, user)
             else:
                 normalized = data["normalized"]
                 values = {"native_vrf": VRF.objects.filter(pk=data["vrf_id"]).first(), "native_status": data.get("native_status") or "active", "native_description": data.get("native_description") or ""}
                 if native_type == TYPE_PREFIX: values["native_prefix"] = normalized
                 elif native_type == TYPE_IP_ADDRESS: values["native_ip_address"] = normalized
                 else: values["native_range_start"], values["native_range_end"] = normalized.split("-", 1)
-                write_system_address(SystemAddress(system=system), operation=OPERATION_CREATE, native_type=native_type, native_values=values, user=user)
+                address = write_system_address(SystemAddress(system=system), operation=OPERATION_CREATE, native_type=native_type, native_values=values, user=user)
+                _require_add_permission(address, user)
 
 
-def _apply_policies(plan):
+def _apply_policies(plan, user):
     policies = {}
     for row in plan.rows:
         data = row.data
         if row.action == "create_policy":
             obj = AccessPolicy(name=data["policy_name"], category=data.get("category") or "", source_system_id=data["source_id"], target_system_id=data["target_id"], valid_from=_parse_datetime(data.get("valid_from")), valid_until=_parse_datetime(data.get("valid_until")), description=data.get("description") or "", comments=data.get("comments") or "")
             obj.full_clean(); obj.save()
+            _require_add_permission(obj, user)
             policies[obj.name.casefold()] = obj
         elif row.action == "create_service":
             obj = PolicyService(policy=policies[str(data["policy_name"]).casefold()], protocol=data["protocol"], is_any=data["is_any"], port_start=data["port_start"], port_end=data["port_end"])
             obj.full_clean(); obj.save()
+            _require_add_permission(obj, user)
+
+
+def _require_add_permission(obj, user):
+    if not obj.__class__.objects.restrict(user, "add").filter(pk=obj.pk).exists():
+        raise PermissionsViolation()

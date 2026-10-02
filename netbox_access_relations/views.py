@@ -1,15 +1,16 @@
 """NetBox-native object views for the plugin."""
 
 from functools import partial
-import base64
 import csv
 from itertools import chain
 import logging
+from uuid import uuid4
 
 from django import forms as django_forms
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core import signing
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.db.models import Q
@@ -27,12 +28,23 @@ from netbox.ui.panels import CommentsPanel, ObjectsTablePanel
 from netbox.views import generic
 from utilities.views import register_model_view
 from utilities.forms import restrict_form_fields
+from utilities.exceptions import PermissionsViolation
 
 from . import filtersets, forms, tables
 from .models import AccessPolicy, ApplicationSystem, PolicyService, SystemAddress, SystemAlias
 from .ui.panels import AccessPolicyPanel, ApplicationSystemPanel, PolicyServicePanel, SystemAddressPanel, SystemAliasPanel
 from .services.workbook_import import apply_workbook, build_template, preview_workbook
 from .services.zones import policy_zone_pairs
+
+
+def _csv_cell(value):
+    """Prevent spreadsheet applications from treating exported text as a formula."""
+    text = str(value)
+    return f"'{text}" if text.startswith(("=", "+", "-", "@", "\t", "\r")) else text
+
+
+def _write_csv_row(writer, values):
+    writer.writerow([_csv_cell(value) for value in values])
 
 
 class ExcelCompatibleCsvExportMixin:
@@ -98,11 +110,11 @@ class ZoneMatrixView(PermissionRequiredMixin, View):
         response["Content-Disposition"] = 'attachment; filename="zone-matrix.csv"'
         response.write("\ufeff")
         writer = csv.writer(response)
-        writer.writerow(["筛选条件", context["query"] or "无"])
-        writer.writerow(["源区域", "目标区域", "访问关系数"])
+        _write_csv_row(writer, ["筛选条件", context["query"] or "无"])
+        _write_csv_row(writer, ["源区域", "目标区域", "访问关系数"])
         for row in context["rows"]:
             for target, cell in zip(context["buckets"], row["cells"]):
-                writer.writerow([row["bucket"].label, target.label, cell["count"]])
+                _write_csv_row(writer, [row["bucket"].label, target.label, cell["count"]])
         return response
 
 
@@ -132,7 +144,7 @@ class WorkbookTemplateView(PermissionRequiredMixin, View):
 
 
 class WorkbookImportView(PermissionRequiredMixin, View):
-    """Two-step preview/confirmation without retaining the uploaded file."""
+    """Two-step preview/confirmation backed by short-lived server-side storage."""
 
     kind = None
     title = None
@@ -150,7 +162,15 @@ class WorkbookImportView(PermissionRequiredMixin, View):
             return self._render(request, form)
         content = form.cleaned_data["workbook"].read()
         plan = preview_workbook(content, self.kind, request.user)
-        token = signing.dumps({"kind": self.kind, "content": base64.b64encode(content).decode("ascii")}, compress=True)
+        # Keep the opaque, signed reference in the browser.  Embedding an XLSX
+        # here would turn a 5 MB upload into a >6 MB form POST on confirmation.
+        upload_id = uuid4().hex
+        cache.set(
+            self._cache_key(upload_id),
+            {"user_id": request.user.pk, "kind": self.kind, "content": content},
+            timeout=1800,
+        )
+        token = signing.dumps({"kind": self.kind, "upload_id": upload_id})
         return self._render(request, form, plan=plan, token=token)
 
     def _confirm(self, request):
@@ -158,7 +178,11 @@ class WorkbookImportView(PermissionRequiredMixin, View):
             payload = signing.loads(request.POST.get("token", ""), max_age=1800)
             if payload.get("kind") != self.kind:
                 raise signing.BadSignature
-            content = base64.b64decode(payload["content"], validate=True)
+            upload_id = payload["upload_id"]
+            stored = cache.get(self._cache_key(upload_id))
+            if not stored or stored.get("user_id") != request.user.pk or stored.get("kind") != self.kind:
+                raise signing.BadSignature
+            content = stored["content"]
             plan = apply_workbook(content, self.kind, request.user)
         except (signing.BadSignature, KeyError, ValueError):
             form = WorkbookUploadForm()
@@ -168,8 +192,19 @@ class WorkbookImportView(PermissionRequiredMixin, View):
             form = WorkbookUploadForm()
             form.add_error(None, exc)
             return self._render(request, form, status=409)
+        except PermissionsViolation:
+            form = WorkbookUploadForm()
+            form.add_error(None, "您没有执行此导入操作的权限。")
+            return self._render(request, form, status=403)
+        finally:
+            if "upload_id" in locals():
+                cache.delete(self._cache_key(upload_id))
         messages.success(request, "工作簿导入成功。")
         return self._render(request, WorkbookUploadForm(), plan=plan, applied=True)
+
+    @staticmethod
+    def _cache_key(upload_id):
+        return f"netbox_access_relations:workbook_import:{upload_id}"
 
     def _render(self, request, form, *, plan=None, token=None, applied=False, status=200):
         return render(request, self.template_name, {
@@ -592,9 +627,9 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
         response["Content-Disposition"] = 'attachment; filename="service-query.csv"'
         response.write("\ufeff")
         writer = csv.writer(response)
-        writer.writerow(["协议", "端口", "关联目标系统数", "目标系统", "访问关系"])
+        _write_csv_row(writer, ["协议", "端口", "关联目标系统数", "目标系统", "访问关系"])
         for group in groups:
-            writer.writerow([
+            _write_csv_row(writer, [
                 group["protocol"],
                 group["port"],
                 group["target_system_count"],
@@ -622,3 +657,11 @@ class PolicyServiceEditView(generic.ObjectEditView):
 @register_model_view(PolicyService, "delete")
 class PolicyServiceDeleteView(generic.ObjectDeleteView):
     queryset = PolicyService.objects.select_related("policy")
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except ValidationError as exc:
+            service = self.get_object(**kwargs)
+            messages.error(request, exc.messages[0])
+            return redirect(service.policy.get_absolute_url())

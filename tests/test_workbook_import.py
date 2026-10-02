@@ -1,5 +1,6 @@
 from io import BytesIO
 from unittest.mock import patch
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -75,3 +76,14 @@ class WorkbookImportTests(TestCase):
         self.assertEqual(SystemAlias.objects.filter(name="ATOMIC-BILLING").count(), 0)
         self.assertEqual(SystemAddress.objects.count(), 0)
         self.assertEqual(IPAddress.objects.filter(address="198.51.100.10/32").count(), 0)
+
+    def test_preflight_rejects_a_workbook_with_excessive_uncompressed_content(self):
+        content = BytesIO()
+        with ZipFile(content, "w", ZIP_DEFLATED) as archive:
+            archive.writestr("xl/sharedStrings.xml", b"x" * (51 * 1024 * 1024))
+
+        plan = preview_workbook(content.getvalue(), "systems", self.user)
+
+        self.assertFalse(plan.valid)
+        self.assertEqual(plan.errors[0].field, "file")
+        self.assertIn("50 MB", plan.errors[0].reason)

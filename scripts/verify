@@ -10,10 +10,10 @@ PRODUCTION_ENV_FILE="${repo_root}/.env.production.example" docker compose \
 "${repo_root}/scripts/build"
 "${repo_root}/scripts/release-build"
 
-docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-access-relations:1.3.0 \
-  -c 'import importlib.metadata as m; assert m.version("netbox-access-relations") == "1.3.0"'
-docker run --rm --entrypoint /bin/sh netbox-access-relations:1.3.0 \
-  -c 'test ! -e /plugin && test ! -e /tmp/netbox_access_relations-1.3.0-py3-none-any.whl'
+docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-access-relations:1.3.1 \
+  -c 'import importlib.metadata as m; assert m.version("netbox-access-relations") == "1.3.1"'
+docker run --rm --entrypoint /bin/sh netbox-access-relations:1.3.1 \
+  -c 'test ! -e /plugin && test ! -e /tmp/netbox_access_relations-1.3.1-py3-none-any.whl'
 
 dev_compose_cmd up --detach postgres redis redis-cache init
 dev_compose_cmd run --rm --no-deps init \

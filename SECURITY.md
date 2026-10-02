@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest `1.0.x` release while it remains
-compatible with a supported NetBox 4.7 deployment. Older plugin releases and
+Security fixes are provided for the latest `1.3.x` release while it remains
+compatible with NetBox 4.7.2 or a later supported 4.7 patch release. Older plugin releases and
 unlisted NetBox versions are not supported.
 
 ## Reporting a vulnerability

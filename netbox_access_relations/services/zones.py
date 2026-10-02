@@ -233,8 +233,14 @@ def policy_zone_pairs(policy):
 
 def policies_matching_zone_pair(queryset, source_key, target_key):
     """从查询集中筛选出匹配指定 (源区域, 目标区域) 对的访问关系。"""
-    matching = [
-        policy.pk for policy in queryset
-        if (source_key, target_key) in {(source.key, target.key) for source, target in policy_zone_pairs(policy)}
-    ]
+    bucket_cache = {}
+    def buckets(system):
+        if system.pk not in bucket_cache:
+            bucket_cache[system.pk] = system_zone_buckets(system)
+        return bucket_cache[system.pk]
+    matching = []
+    for policy in queryset.iterator(chunk_size=200):
+        pairs = product(buckets(policy.source_system), buckets(policy.target_system))
+        if any(source.key == source_key and target.key == target_key for source, target in pairs):
+            matching.append(policy.pk)
     return queryset.filter(pk__in=matching)

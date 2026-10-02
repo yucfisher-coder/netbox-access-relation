@@ -1,7 +1,7 @@
 # Linux x86_64 (amd64) 严格离线部署指南
 
 本文面向 **Linux x86_64 / amd64** 服务器的**严格离线生产部署**。全程不需要生产服务器访问互联网，
-所有镜像和依赖在联网构建机上预先打包。当前版本 `1.3.0`；从 1.2.x 升级时须执行 `0006_global_any_services` 迁移。
+所有镜像和依赖在联网构建机上预先打包。当前版本 `1.3.1`；从 1.2.x 升级时须执行 `0006_global_any_services` 迁移。
 
 > 如果需要从旧环境迁移数据，部署完成后参见 [严格离线部署、备份、恢复与迁移](offline.md)。
 > ARM64 部署请在 ARM 构建机上制作介质，流程相同但镜像架构不同。
@@ -29,7 +29,7 @@
 
 ```bash
 # 拉取三个基础镜像（NetBox、PostgreSQL、Redis）
-docker pull netboxcommunity/netbox:v4.7.0-5.1.1
+docker pull netboxcommunity/netbox:v4.7.2-5.1.1
 docker pull postgres:18.6-alpine
 docker pull redis:7.4.11-alpine
 ```
@@ -37,11 +37,11 @@ docker pull redis:7.4.11-alpine
 校验拉取的镜像 digest 与项目锁定值一致：
 
 ```bash
-docker image inspect netboxcommunity/netbox:v4.7.0-5.1.1 \
+docker image inspect netboxcommunity/netbox:v4.7.2-5.1.1 \
   --format '{{join .RepoDigests "\n"}}'
 ```
 
-应包含 `@sha256:1685e91c61bb4050089db2bb1603718820ae3ce0b266d4d069ff7c682f5d9c58`。
+应包含 `@sha256:6f7177d3ff4db2d65212420a4d8dffab22e15de0d767c2bf3b06d36e588df5e9`。
 PostgreSQL 和 Redis 的锁定 digest 见 [locks/images.md](../../../locks/images.md)。
 
 ### 2. 构建生产镜像并打包
@@ -60,7 +60,7 @@ scripts/release-package
 生成的部署包目录：
 
 ```text
-dist/offline-release-1.3.0/
+dist/offline-release-1.3.1/
 ├── images.tar              # 三个镜像的归档（netbox-access-relations、postgres、redis）
 ├── SHA256SUMS              # images.tar 的校验和
 ├── .env.production.example # 环境变量模板
@@ -79,23 +79,23 @@ dist/offline-release-1.3.0/
 
 ### 3. 传输到生产服务器
 
-将整个 `dist/offline-release-1.3.0/` 目录原样传输到生产服务器，例如：
+将整个 `dist/offline-release-1.3.1/` 目录原样传输到生产服务器，例如：
 
 ```bash
-scp -r dist/offline-release-1.3.0 user@prod-server:/opt/
+scp -r dist/offline-release-1.3.1 user@prod-server:/opt/
 ```
 
 > 不要只复制 `images.tar`。不要把开发源码、`.env` 或真实密码传输到生产。
 
 ## 三、在生产服务器部署
 
-以下命令在**离线生产服务器**上执行。假定部署包已放置到 `/opt/offline-release-1.3.0`。
+以下命令在**离线生产服务器**上执行。假定部署包已放置到 `/opt/offline-release-1.3.1`。
 
 ### 1. 解压到位并校验
 
 ```bash
 sudo mkdir -p /opt/netbox-access-relations
-sudo cp -a /opt/offline-release-1.3.0/. /opt/netbox-access-relations/
+sudo cp -a /opt/offline-release-1.3.1/. /opt/netbox-access-relations/
 cd /opt/netbox-access-relations
 
 # 校验镜像归档完整性（必须全部通过）
@@ -105,7 +105,7 @@ sha256sum --check SHA256SUMS
 docker load -i images.tar
 
 # 确认三个镜像均已导入
-docker image inspect netbox-access-relations:1.3.0 postgres:18.6-alpine redis:7.4.11-alpine >/dev/null \
+docker image inspect netbox-access-relations:1.3.1 postgres:18.6-alpine redis:7.4.11-alpine >/dev/null \
   && echo "Images OK"
 ```
 
@@ -130,7 +130,7 @@ sudo chmod 600 .env.production
 | `REDIS_CACHE_PASSWORD` | Redis 缓存密码 | 随机强密码 |
 | `SECRET_KEY` | Django 密钥，至少 50 位 | `openssl rand -base64 60` 生成 |
 | `API_TOKEN_PEPPER_1` | API token 加盐 | 随机字符串 |
-| `NETBOX_PRODUCTION_IMAGE` | 应用镜像标签 | `netbox-access-relations:1.3.0` |
+| `NETBOX_PRODUCTION_IMAGE` | 应用镜像标签 | `netbox-access-relations:1.3.1` |
 | `NETBOX_HTTP_PORT` | 宿主机监听端口 | `8000`（默认） |
 
 生成随机值的命令：
@@ -267,4 +267,4 @@ A: 检查 `postgres` 容器是否 healthy，`.env.production` 中 `DB_PASSWORD` 
 A: 编辑 `.env.production` 中的 `NETBOX_HTTP_PORT`，然后执行 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d` 重新创建容器。
 
 **Q: 如何确认当前镜像架构？**
-A: `docker image inspect netbox-access-relations:1.3.0 --format '{{.Architecture}}'` 应输出 `amd64`。
+A: `docker image inspect netbox-access-relations:1.3.1 --format '{{.Architecture}}'` 应输出 `amd64`。

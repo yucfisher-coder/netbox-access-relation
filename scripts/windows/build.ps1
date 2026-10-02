@@ -6,7 +6,7 @@
 Test-EnvFile
 Assert-DockerRunning
 
-$baseImage = 'netboxcommunity/netbox:v4.7.0-5.1.1'
+$baseImage = 'netboxcommunity/netbox:v4.7.2-5.1.1'
 
 $lockedManifests = @{
     'amd64' = 'sha256:fa7ffa268c39fb258bed80bd256360a525f1a129ee4ee06298f10d6708578eba'

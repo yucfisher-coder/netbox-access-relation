@@ -88,3 +88,17 @@ class PolicyServiceTests(TestCase):
             find_duplicate_policies(self.source.pk, self.target.pk, additional_service),
             [],
         )
+
+    def test_deleting_the_last_service_is_rejected(self):
+        policy = self.create_policy("Protected service")
+        service = PolicyService.objects.create(
+            policy=policy,
+            protocol=TransportProtocolChoices.TCP,
+            port_start=443,
+            port_end=443,
+        )
+
+        with self.assertRaises(ValidationError):
+            service.delete()
+
+        self.assertTrue(PolicyService.objects.filter(pk=service.pk).exists())

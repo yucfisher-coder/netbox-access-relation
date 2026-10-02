@@ -1,6 +1,6 @@
 # NetBox Access Relations
 
-> 目标：NetBox Community **4.7.0** + 独立 Python 插件；宿主机编辑、Compose 开发；生产安装 wheel 后构建不可变镜像。
+> 目标：NetBox Community **4.7.2** + 独立 Python 插件；宿主机编辑、Compose 开发；生产安装 wheel 后构建不可变镜像。
 
 插件发行根就是本仓库根目录：运行时依赖仅由 [`pyproject.toml`](pyproject.toml) 声明，Django app 位于
 [`netbox_access_relations/`](netbox_access_relations)。因此可在任何兼容的 NetBox Python 环境中使用
@@ -8,12 +8,12 @@
 
 ## 项目状态
 
-当前发布版本 **1.3.0**。首个生产版本 **1.0.0** 已于 2026-09-22 完成发布门禁。当前包含 `ApplicationSystem`、`SystemAlias`、
+当前发布版本 **1.3.1**。首个生产版本 **1.0.0** 已于 2026-09-22 完成发布门禁。当前包含 `ApplicationSystem`、`SystemAlias`、
 `SystemAddress`、`AccessPolicy` 和 `PolicyService` 五个业务模型，数据结构基线固定为迁移
 `0001`～`0006`。核心页面、导入、服务查询和区域矩阵已经实现；ARM64 不可变镜像、离线启动、
 版本化生产卷和隔离恢复演练均已通过。部署到实际生产主机前仍须注入真实密钥、域名并按目标架构重建。
 
-版本策略：不影响数据结构的修复和常规增强进入当前次版本的补丁版本（如 `1.3.0`）；涉及仓库结构、构建体系调整，或数据库模型/约束变化时进入新的次版本。
+版本策略：不影响数据结构的修复和常规增强进入当前次版本的补丁版本（如 `1.3.1`）；涉及仓库结构、构建体系调整，或数据库模型/约束变化时进入新的次版本。
 
 ## 文档索引
 
@@ -37,7 +37,7 @@
 ### 发布
 - [离线源码构建发布脚本](scripts/release-source-package)
 - [变更日志](CHANGELOG.md)
-- [1.3.0 发布说明](docs/releases/1.3.0.md)
+- [1.3.1 发布说明](docs/releases/1.3.1.md)
 - [1.2.1 发布说明](docs/releases/1.2.1.md)
 - [1.1.1 发布说明](docs/releases/1.1.1.md)
 - [1.1.0 发布说明](docs/releases/1.1.0.md)
@@ -65,7 +65,7 @@ Linux、macOS 与 Windows Docker Desktop 均使用相同的 `docker compose` 命
 ```bash
 cp .env.production.example .env.production
 # 编辑 .env.production，填入域名与真实密钥
-docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.3.0 .
+docker build -f docker/Dockerfile.prod -t netbox-access-relations:1.3.1 .
 docker volume create netbox-access-relations-prod-postgres18-v1
 docker volume create netbox-access-relations-prod-media-v1
 docker volume create netbox-access-relations-prod-redis-v1
@@ -81,7 +81,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ## CI/CD 与发布
 
 - **PR 门禁**：`.github/workflows/ci.yml` 在每个 PR 上并行执行 Compose 配置校验、插件 wheel 构建，以及开发镜像构建（镜像构建同时验证插件 wheel 能装入真实 NetBox 运行环境）。
-- **发布**：推送 `v*` 标签（如 `v1.3.0`）触发 `.github/workflows/release.yml`，构建 wheel 与生产镜像，将镜像推送到 `ghcr.io/<owner>/<repo>/netbox-access-relations:<version>`，并创建 GitHub Release 挂载 wheel、`SHA256SUMS` 与 `IMAGE_ID`。
+- **发布**：推送 `v*` 标签（如 `v1.3.1`）触发 `.github/workflows/release.yml`，构建 wheel 与生产镜像，将镜像推送到 `ghcr.io/<owner>/<repo>/netbox-access-relations:<version>`，并创建 GitHub Release 挂载 wheel、`SHA256SUMS` 与 `IMAGE_ID`。
 - **离线完整交付包**仍在受控发布机上用 `scripts/release-package` / `scripts/build-offline-release` 生成，不依赖 CI。
 
 ## 许可与支持

@@ -5,6 +5,18 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-02
+
+### Fixed
+
+- 将运行时、开发、生产与离线交付的 NetBox 基线统一升级到 4.7.2，使用官方锁定 OCI digest。
+- API 和 XLSX 导入补充对象级权限校验；导入预检不再泄露不可见对象的存在性。
+- CSV 导出转义公式前缀；XLSX 导入增加行数与单元格长度上限。
+
+### Notes
+
+- 本版本不包含数据库迁移，数据结构与 1.3.0 兼容。
+
 ## [1.3.0] - 2026-10-01
 
 ### Added

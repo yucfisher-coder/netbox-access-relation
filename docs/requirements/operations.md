@@ -4,7 +4,7 @@
 
 | ID | 需求 |
 |---|---|
-| REQ-OPS-001 | 固定 NetBox 4.7.0、netbox-docker 5.1.1、PostgreSQL 18.6 和 Redis 7.4.11 的明确版本或 digest。 |
+| REQ-OPS-001 | 固定 NetBox 4.7.2、netbox-docker 5.1.1、PostgreSQL 18.6 和 Redis 7.4.11 的明确版本或 digest。 |
 | REQ-OPS-002 | 开发、测试、恢复和生产数据库相互隔离。 |
 | REQ-OPS-003 | 测试覆盖规则、迁移、CRUD/API、权限、事务/并发、浏览器、wheel 安装和恢复；失败阻断发布。 |
 | REQ-OPS-004 | 生产使用 wheel 和不可变镜像，不挂源码、不 editable、不联网安装，不启用调试配置。 |

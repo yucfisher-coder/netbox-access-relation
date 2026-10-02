@@ -35,11 +35,11 @@ chmod 600 .env.production
 ```bash
 docker build \
   --file docker/Dockerfile.prod \
-  --tag netbox-access-relations:1.3.0 \
+  --tag netbox-access-relations:1.3.1 \
   .
 ```
 
-这个镜像以锁定的 NetBox `v4.7.0-5.1.1` 为基础，并将本插件及其运行时 Python 依赖装入镜像。构建时 Docker 会按需取得 NetBox 和 Python 构建镜像；Compose 启动时会取得锁定的 PostgreSQL 和 Redis 镜像。基础镜像 digest 见 [`locks/images.md`](../../../locks/images.md)。
+这个镜像以锁定的 NetBox `v4.7.2-5.1.1` 为基础，并将本插件及其运行时 Python 依赖装入镜像。构建时 Docker 会按需取得 NetBox 和 Python 构建镜像；Compose 启动时会取得锁定的 PostgreSQL 和 Redis 镜像。基础镜像 digest 见 [`locks/images.md`](../../../locks/images.md)。
 
 如果使用不同的应用镜像标签，必须同步设置 `.env.production` 的 `NETBOX_PRODUCTION_IMAGE`。
 
@@ -78,3 +78,25 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ## 升级与备份
 
 升级前先备份并在隔离环境演练恢复。完整的备份、恢复、迁移和严格离线交付说明见[严格离线部署、备份、恢复与迁移](offline.md)。
+
+### 从 NetBox 4.7.0 升级到 4.7.2
+
+这是同一 4.7 小版本内的补丁升级；本项目已将基础镜像锁定为 `v4.7.2-5.1.1`。在维护窗口内执行以下最小流程：
+
+```bash
+# 1. 先完成现有生产环境备份
+scripts/backup-production
+
+# 2. 获取包含本次更新的项目源码，并重新构建应用镜像
+docker build --file docker/Dockerfile.prod --tag netbox-access-relations:1.3.1 .
+
+# 3. 使用原有 external volumes 重新创建应用与 worker；不要使用 down -v
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+
+# 4. 确认服务与迁移状态
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T netbox \
+  /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate --check
+```
+
+不要删除 PostgreSQL、media 或 Redis external volumes，也不要使用 `docker compose down -v`。升级后检查 Web 登录、插件页面和后台作业；官方已指出 4.7.0/4.7.1 的后台批量 API Token 可能明文出现在作业结果中，若环境曾执行过该操作，应轮换相关 Token。
