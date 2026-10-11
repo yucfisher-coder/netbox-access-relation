@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${repo_root}/.env"
 dev_compose="${repo_root}/docker-compose.yml"
 production_compose="${repo_root}/docker-compose.prod.yml"
+test_compose_project="netbox-access-relations-test"
 
 require_env() {
   if [[ ! -f "${env_file}" ]]; then
@@ -16,6 +17,12 @@ require_env() {
 dev_compose_cmd() {
   require_env
   docker compose --env-file "${env_file}" -f "${dev_compose}" "$@"
+}
+
+test_compose_cmd() {
+  require_env
+  docker compose --project-name "${test_compose_project}" \
+    --env-file "${env_file}" -f "${dev_compose}" "$@"
 }
 
 production_compose_cmd() {

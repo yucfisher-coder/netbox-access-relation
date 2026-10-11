@@ -1,4 +1,5 @@
 #!/bin/bash
+# 可选的生产 Compose 命令简写；直接命令见 docs/guides/deployment/docker.md。
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
@@ -18,20 +19,14 @@ case "${command_name}" in
     docker volume create "${MEDIA_VOLUME_NAME:-netbox-access-relations-prod-media-v1}"
     docker volume create "${REDIS_VOLUME_NAME:-netbox-access-relations-prod-redis-v1}"
     ;;
-  config)
-    production_compose_cmd config "$@"
-    ;;
-  up)
-    production_compose_cmd up --detach "$@"
-    ;;
-  stop)
-    production_compose_cmd stop "$@"
-    ;;
-  status)
-    production_compose_cmd ps "$@"
-    ;;
-  logs)
-    production_compose_cmd logs --follow "$@"
+  config|up|stop|status|logs)
+    case "${command_name}" in
+      up) set -- up --detach "$@" ;;
+      status) set -- ps "$@" ;;
+      logs) set -- logs --follow "$@" ;;
+      *) set -- "${command_name}" "$@" ;;
+    esac
+    production_compose_cmd "$@"
     ;;
   help|*)
     echo "Usage: scripts/production {init-volumes|config|up|stop|status|logs}"

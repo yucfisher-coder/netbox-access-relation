@@ -15,24 +15,25 @@ for image in "${base_image}" "${python_builder_image}" "${postgres_image}" "${re
   require_image_arch "${image}"
 done
 
-mkdir -p "${package_dir}/docker" "${package_dir}/config" \
-  "${package_dir}/locks" "${package_dir}/scripts" \
-  "${package_dir}/docs" "${package_dir}/offline-wheelhouse"
-cp "${repo_root}/docker/Dockerfile.offline.prod" "${package_dir}/docker/"
-cp "${repo_root}/pyproject.toml" "${repo_root}/MANIFEST.in" "${repo_root}/README.md" \
-  "${repo_root}/LICENSE" "${repo_root}/CHANGELOG.md" "${repo_root}/COMPATIBILITY.md" \
-  "${repo_root}/CONTRIBUTING.md" "${repo_root}/SECURITY.md" "${package_dir}/"
-cp -a "${repo_root}/netbox_access_relations" "${package_dir}/"
-cp "${repo_root}/config/plugins.py" "${package_dir}/config/"
-cp "${repo_root}/locks/production-requirements.txt" "${repo_root}/locks/images.md" "${package_dir}/locks/"
-cp "${repo_root}/docker-compose.prod.yml" "${package_dir}/"
-cp "${repo_root}/.env.production.example" "${package_dir}/"
-cp "${repo_root}/scripts/_common.sh" "${repo_root}/scripts/_release-common.sh" \
-  "${repo_root}/scripts/build-offline-release" \
-  "${repo_root}/scripts/production" "${repo_root}/scripts/backup-production" \
-  "${repo_root}/scripts/restore-production" "${package_dir}/scripts/"
-cp "${repo_root}/docs/guides/deployment/docker.md" "${repo_root}/docs/releases/${release_version}.md" \
-  "${package_dir}/docs/"
+mkdir -p "${package_dir}" "${package_dir}/offline-wheelhouse"
+while IFS= read -r -d '' tracked_path; do
+  case "${tracked_path}" in
+    .env|.env.*|.secrets/*|backups/*|private-data/*|*.sql|*.sql.gz)
+      case "${tracked_path}" in
+        .env.example|.env.production.example) ;;
+        *) continue ;;
+      esac
+      ;;
+    *.xlsx)
+      case "${tracked_path}" in tests/fixtures/*.xlsx) ;;
+        *) continue ;;
+      esac
+      ;;
+  esac
+  destination="${package_dir}/${tracked_path}"
+  mkdir -p "$(dirname "${destination}")"
+  cp -a "${repo_root}/${tracked_path}" "${destination}"
+done < <(git -C "${repo_root}" ls-files -z)
 python -m pip download --only-binary=:all: --dest "${package_dir}/offline-wheelhouse" \
   'setuptools==80.9.0' --requirement "${repo_root}/locks/production-requirements.txt"
 docker image save --output "${package_dir}/images.tar" \

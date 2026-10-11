@@ -1,7 +1,7 @@
 #!/bin/bash
 # Shared configuration and safety checks for release and offline-build scripts.
 
-release_version="${RELEASE_VERSION:-1.3.1}"
+release_version="${RELEASE_VERSION:-1.3.2}"
 image_name="${NETBOX_PRODUCTION_IMAGE:-netbox-access-relations:${release_version}}"
 base_image="${NETBOX_BASE_IMAGE:-netboxcommunity/netbox:v4.7.2-5.1.1}"
 python_builder_image="${PYTHON_BUILD_IMAGE:-python:3.12-slim}"

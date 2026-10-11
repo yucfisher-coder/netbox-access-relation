@@ -94,8 +94,8 @@ scripts/test
 
 测试代码位于仓库根目录的 `tests/`，只挂载到开发 Compose 容器；它不属于 Python 插件包，生产
 Dockerfile 也不会复制它。CI 会运行该测试，并校验 wheel 中不包含测试目录。
-测试数据库使用独立的 `test_netbox` 数据库并以 `--keepdb` 复用，避免每次本地执行都重新迁移完整
-NetBox；首次运行和 CI 仍会从空测试数据库创建。
+每次测试使用固定的独立 Compose 项目 `netbox-access-relations-test`，结束时（包括失败时）自动删除
+该项目的容器、网络与卷；测试数据库不会写入可复用的开发项目 `netbox-access-relations-dev`。
 
 ## 七、提交前验收
 
@@ -104,22 +104,20 @@ NetBox；首次运行和 CI 仍会从空测试数据库创建。
 1. 校验开发与生产两份 Compose 配置可正常展开；
 2. 构建开发镜像与生产镜像；
 3. 断言生产镜像内插件版本正确、且无残留的可编辑安装或临时 wheel；
-4. 启动依赖服务，检查迁移无漂移并运行 Django 回归测试。
+4. 在隔离测试项目中启动临时依赖服务，检查迁移无漂移并运行 Django 回归测试，随后自动清理测试资源。
 
-全部通过才输出 `Baseline verification passed.`。该脚本**不会**执行 `docker compose down -v`。
+全部通过才输出 `Baseline verification passed.`。它不会清理开发或生产资源；仅测试项目会执行作用域限定的 `down --volumes`。
 
-## 八、构建生产与离线介质（可选）
+## 八、构建生产与离线源码交付包（可选）
 
 需要在本机验证生产构建或制作离线交付包时：
 
 ```bash
-scripts/release-build        # 构建生产镜像 netbox-access-relations:<version>
-scripts/release-package      # 生成 dist/offline-release-<version>/（含已构建镜像）
-scripts/release-source-package  # 生成 dist/offline-source-release-<version>/（源码包）
+scripts/release-build          # 构建生产镜像 netbox-access-relations:<version>
+scripts/release-source-package # 打包完整源码、公共基础镜像和锁定 wheel
 ```
 
-离线介质的制作与目标机部署流程见 [`deployment/offline.md`](deployment/offline.md)。
-注意：生产离线镜像归档必须在与目标主机相同 CPU 架构的机器上制作。
+生产主机不能联网时，`release-source-package` 是标准交付方式：目标机从离线介质载入基础镜像、源码和 wheelhouse，并以 `--network=none` 构建最终镜像。离线介质的制作与部署流程见 [`deployment/offline.md`](deployment/offline.md)。构建包必须在与目标主机相同 CPU 架构的机器上制作。
 
 ## 九、提交规范
 

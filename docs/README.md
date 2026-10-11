@@ -12,7 +12,9 @@
 | 找到代码和配置的位置 | [仓库结构参考](reference/repository-structure.md) |
 | 本地开发、调试和验证 | [本地开发指南](guides/development.md) |
 | 普通联网部署 | [Docker 部署](guides/deployment/docker.md) |
-| 严格离线部署、恢复或迁移 | [严格离线部署](guides/deployment/offline.md) |
+| 镜像准备、备份、恢复或迁移 | [关键命令](guides/deployment/commands.md) |
+| 严格离线源码交付与断网构建 | [严格离线部署](guides/deployment/offline.md) |
+| Windows Docker Desktop 开发 | [Windows 开发指南](guides/deployment/windows-docker-desktop.md) |
 | 核对兼容性与镜像锁定 | [兼容性矩阵](../COMPATIBILITY.md) 与 [`locks/images.md`](../locks/images.md) |
 | 查看历史变更与升级影响 | [`releases/`](releases/) 与 [变更日志](../CHANGELOG.md) |
 

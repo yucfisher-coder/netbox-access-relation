@@ -1,8 +1,8 @@
 # Docker 部署（默认路径）
 
-本文是本项目面向大多数用户的部署入口：在可访问镜像仓库和 PyPI 的 Docker 主机上，构建一个包含插件的 NetBox 应用镜像，再由 Compose 启动 NetBox、PostgreSQL 和 Redis。
+本文说明如何准备配置、镜像和数据卷，再由 Docker Compose 启动服务。项目脚本可选；已有匹配架构的完整运行镜像时，跳过构建。
 
-这不是离线部署流程。需要隔离网络、可审计源码构建或通过移动介质交付时，请使用[严格离线部署](offline.md)。
+离线主机可先导入完整运行镜像，再按本文启动；需要在目标机断网构建时，使用[严格离线源码交付](offline.md)。
 
 ## 适用范围
 
@@ -30,12 +30,14 @@ chmod 600 .env.production
 
 保持 `CENSUS_REPORTING_ENABLED=false` 和空的 `RELEASE_CHECK_URL`。不要提交 `.env.production`。
 
+已有匹配目标架构的应用、PostgreSQL 和 Redis 镜像时，可跳过构建，直接进入第 3 步。部署由 Docker Compose 完成，项目脚本是可选工具。关键命令及参数说明见[直接命令：镜像、备份与恢复](commands.md)。
+
 ## 2. 构建应用镜像
 
 ```bash
 docker build \
   --file docker/Dockerfile.prod \
-  --tag netbox-access-relations:1.3.1 \
+  --tag netbox-access-relations:1.3.2 \
   .
 ```
 
@@ -53,7 +55,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
-Windows PowerShell 可直接执行对应的 `docker volume create` 和 `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`；详见[Windows Docker Desktop 指南](windows-docker-desktop.md)。
+Windows Docker Desktop 仅作为开发和评估环境；生产部署支持边界见[兼容性矩阵](../../../COMPATIBILITY.md)。
 
 首次启动时等待 `netbox` 变为 `healthy`，再确认迁移状态：
 
@@ -77,18 +79,17 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 
 ## 升级与备份
 
-升级前先备份并在隔离环境演练恢复。完整的备份、恢复、迁移和严格离线交付说明见[严格离线部署、备份、恢复与迁移](offline.md)。
+升级前先备份并在隔离环境演练恢复。备份与恢复步骤及参数见[关键命令](commands.md)，离线介质制作见[严格离线源码交付](offline.md)。
 
 ### 从 NetBox 4.7.0 升级到 4.7.2
 
 这是同一 4.7 小版本内的补丁升级；本项目已将基础镜像锁定为 `v4.7.2-5.1.1`。在维护窗口内执行以下最小流程：
 
 ```bash
-# 1. 先完成现有生产环境备份
-scripts/backup-production
+# 1. 先按关键命令指南完成备份并确认成功，再继续
 
 # 2. 获取包含本次更新的项目源码，并重新构建应用镜像
-docker build --file docker/Dockerfile.prod --tag netbox-access-relations:1.3.1 .
+docker build --file docker/Dockerfile.prod --tag netbox-access-relations:1.3.2 .
 
 # 3. 使用原有 external volumes 重新创建应用与 worker；不要使用 down -v
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d

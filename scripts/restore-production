@@ -1,42 +1,63 @@
 #!/bin/bash
+# 生产数据全量恢复（Linux Bash）。此脚本会删除目标数据库和全部 media 文件。
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 backup_dir="${1:-}"
+postgres_service="${RESTORE_POSTGRES_SERVICE:-postgres}"
+netbox_service="${RESTORE_NETBOX_SERVICE:-netbox}"
+media_path="${RESTORE_MEDIA_PATH:-/opt/netbox/netbox/media}"
+read -r -a application_services <<< "${RESTORE_APPLICATION_SERVICES:-netbox worker}"
+
 if [[ -z "${backup_dir}" || ! -d "${backup_dir}" ]]; then
   echo "Usage: RESTORE_CONFIRM=restore-production-v1 scripts/restore-production /absolute/backup-directory" >&2
   exit 2
 fi
 backup_dir="$(cd "${backup_dir}" && pwd)"
-if [[ "${RESTORE_CONFIRM:-}" != "restore-production-v1" ]]; then
-  echo "Restore replaces current database objects and media files; set RESTORE_CONFIRM=restore-production-v1." >&2
-  exit 2
-fi
-for file_name in database.dump media.tar.gz SHA256SUMS; do
+[[ "${RESTORE_CONFIRM:-}" == "restore-production-v1" ]] \
+  || { echo "Restore replaces current database objects and media files; set RESTORE_CONFIRM=restore-production-v1." >&2; exit 2; }
+[[ "${media_path}" == /* ]] || { echo "RESTORE_MEDIA_PATH must be an absolute container path." >&2; exit 2; }
+for file_name in database.dump database.sql media.tar.gz SHA256SUMS; do
   test -f "${backup_dir}/${file_name}" || { echo "Missing ${backup_dir}/${file_name}" >&2; exit 2; }
 done
-(cd "${backup_dir}" && sha256sum --check SHA256SUMS)
+# 默认仅接受带兼容性元数据的新格式；旧备份必须由操作者显式确认后才允许恢复。
+if [[ -f "${backup_dir}/metadata.txt" ]]; then
+  # 不要求行首无 BOM，确保可恢复 Windows PowerShell 生成的 UTF-8 元数据。
+  grep -q 'backup_format=netbox-access-relations-backup-v2' "${backup_dir}/metadata.txt" \
+    || { echo "Unsupported backup metadata format." >&2; exit 2; }
+elif [[ "${RESTORE_ALLOW_LEGACY_BACKUP:-}" != "1" ]]; then
+  echo "Legacy backup has no metadata.txt; set RESTORE_ALLOW_LEGACY_BACKUP=1 only after manual compatibility review." >&2
+  exit 2
+fi
 
-production_compose_cmd stop worker netbox
-production_compose_cmd exec -T postgres sh -c 'cat > /tmp/netbox-restore.dump' \
+# 任何损坏、配置错误或数据库不可访问都应在停止应用和删除数据之前失败。
+(cd "${backup_dir}" && sha256sum --check SHA256SUMS)
+production_compose_cmd config --quiet
+production_compose_cmd exec -T "${postgres_service}" sh -c 'pg_isready -q -d "$POSTGRES_DB" -U "$POSTGRES_USER"'
+
+echo "WARNING: replacing database and media from ${backup_dir}."
+production_compose_cmd stop "${application_services[@]}"
+production_compose_cmd exec -T "${postgres_service}" sh -c 'cat > /tmp/netbox-restore.dump' \
   < "${backup_dir}/database.dump"
-production_compose_cmd exec -T postgres sh -ec '
+
+# 分段恢复规避 NetBox 4.7 ltree 触发器在空 search_path 下的重建问题。
+production_compose_cmd exec -T "${postgres_service}" sh -ec '
   dropdb --if-exists --force --username="$POSTGRES_USER" "$POSTGRES_DB"
   createdb --username="$POSTGRES_USER" "$POSTGRES_DB"
   psql --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" -c "CREATE EXTENSION IF NOT EXISTS ltree"
-  pg_restore --exit-on-error --no-owner --no-acl --section=pre-data \
-    --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
-  pg_restore --exit-on-error --no-owner --no-acl --section=data \
-    --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --exit-on-error --no-owner --no-acl --section=pre-data --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
+  pg_restore --exit-on-error --no-owner --no-acl --section=data --dbname="$POSTGRES_DB" --username="$POSTGRES_USER" /tmp/netbox-restore.dump
   pg_restore --no-owner --no-acl --section=post-data --file=- /tmp/netbox-restore.dump \
     | sed "s/SELECT pg_catalog.set_config('\''search_path'\'', '\'''\'', false);/SELECT pg_catalog.set_config('\''search_path'\'', '\''public, pg_catalog'\'', false);/" \
     | psql --quiet --set=ON_ERROR_STOP=1 --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"
   rm /tmp/netbox-restore.dump
 '
-production_compose_cmd run --rm --no-deps -T netbox sh -c \
-  'find /opt/netbox/netbox/media -mindepth 1 -delete; tar -C /opt/netbox/netbox/media -xzf -' \
-  < "${backup_dir}/media.tar.gz"
-production_compose_cmd up --detach netbox worker
 
-echo "Restore completed from ${backup_dir}. Run the release acceptance checks now."
+# media 必须先清空，避免目标环境残留附件与恢复后的数据库记录不一致。
+production_compose_cmd run --rm --no-deps -T "${netbox_service}" sh -c \
+  "find \"${media_path}\" -mindepth 1 -delete; tar -C \"${media_path}\" -xzf -" \
+  < "${backup_dir}/media.tar.gz"
+production_compose_cmd up --detach "${application_services[@]}"
+
+echo "Restore completed from ${backup_dir}. Run migrate --check and the release acceptance checks now."

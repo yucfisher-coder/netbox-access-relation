@@ -1,21 +1,70 @@
 #!/bin/bash
+# 生产数据全量备份（Linux Bash）。
+#
+# 备份边界：PostgreSQL 业务库、NetBox media 附件，以及恢复前判定兼容性的元数据。
+# Redis 是缓存和任务队列，不属于不可替代业务数据，故不导出。
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
+# 保留当前项目的默认值；部署若仅调整了服务名或 media 挂载路径，可通过环境变量覆盖。
+postgres_service="${BACKUP_POSTGRES_SERVICE:-postgres}"
+netbox_service="${BACKUP_NETBOX_SERVICE:-netbox}"
+media_path="${BACKUP_MEDIA_PATH:-/opt/netbox/netbox/media}"
 backup_root="${1:-${repo_root}/backups}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_dir="${backup_root%/}/${timestamp}"
-mkdir -p "${backup_dir}"
+read -r -a application_services <<< "${BACKUP_APPLICATION_SERVICES:-netbox worker}"
+running_services=()
 
-production_compose_cmd exec -T postgres sh -c \
+[[ "${media_path}" == /* ]] || { echo "BACKUP_MEDIA_PATH must be an absolute container path." >&2; exit 2; }
+
+# 只恢复脚本启动前本来就在运行的应用服务，避免改变人工维护中的服务状态。
+for service in "${application_services[@]}"; do
+  if production_compose_cmd ps --services --filter status=running | grep -Fxq "${service}"; then
+    running_services+=("${service}")
+  fi
+done
+
+resume_application() {
+  # pg_dump 自身是一致性快照，但 media 是文件；暂停写入才使二者处于同一维护窗口。
+  if ((${#running_services[@]})); then
+    production_compose_cmd up --detach "${running_services[@]}" \
+      || echo "WARNING: failed to restart application services: ${running_services[*]}" >&2
+  fi
+}
+trap resume_application EXIT
+
+mkdir -p "${backup_dir}"
+if ((${#running_services[@]})); then
+  echo "Stopping application writes: ${running_services[*]}"
+  production_compose_cmd stop "${running_services[@]}"
+fi
+
+# custom dump 是恢复的唯一输入；纯文本 SQL 保留给人工审阅和故障排查。
+production_compose_cmd exec -T "${postgres_service}" sh -c \
   'exec pg_dump --format=custom --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
   > "${backup_dir}/database.dump"
-production_compose_cmd exec -T postgres sh -c \
+production_compose_cmd exec -T "${postgres_service}" sh -c \
   'exec pg_dump --format=plain --no-owner --no-acl --dbname="$POSTGRES_DB" --username="$POSTGRES_USER"' \
   > "${backup_dir}/database.sql"
-production_compose_cmd exec -T netbox tar -C /opt/netbox/netbox/media -czf - . \
+production_compose_cmd run --rm --no-deps -T --entrypoint tar "${netbox_service}" -C "${media_path}" -czf - . \
   > "${backup_dir}/media.tar.gz"
 
-(cd "${backup_dir}" && sha256sum database.dump database.sql media.tar.gz > SHA256SUMS)
-echo "Backup written to ${backup_dir}."
+# 元数据不含密码或 SECRET_KEY；记录版本和迁移基线，恢复前可先人工核对兼容性。
+{
+  echo "backup_format=netbox-access-relations-backup-v2"
+  echo "created_utc=${timestamp}"
+  echo "postgres_service=${postgres_service}"
+  echo "netbox_service=${netbox_service}"
+  echo "media_path=${media_path}"
+  echo "postgres_version=$(production_compose_cmd exec -T "${postgres_service}" postgres --version)"
+  echo "netbox_version=$(production_compose_cmd run --rm --no-deps -T --entrypoint /opt/netbox/venv/bin/python "${netbox_service}" -c 'import netbox; print(netbox.__version__)')"
+  echo "migration_plan:"
+  production_compose_cmd run --rm --no-deps -T --entrypoint /opt/netbox/venv/bin/python "${netbox_service}" \
+    /opt/netbox/netbox/manage.py showmigrations --plan
+} > "${backup_dir}/metadata.txt"
+
+# 元数据也纳入校验，避免恢复时拿到与 dump 不匹配的版本说明。
+(cd "${backup_dir}" && sha256sum database.dump database.sql media.tar.gz metadata.txt > SHA256SUMS)
+echo "Backup written to ${backup_dir}. Copy the complete directory to independent storage."

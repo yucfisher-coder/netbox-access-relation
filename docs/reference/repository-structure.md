@@ -92,8 +92,8 @@ netbox-access-relation/                 ← 发行根（distribution root）
 | `scripts/_release-common.sh` | 发布构建的版本、镜像和架构公共配置及校验函数 |
 | `scripts/build` | 校验基础镜像 digest 后构建开发镜像 `netbox-access-relations-dev:local` |
 | `scripts/release-build` | 构建生产镜像 `netbox-access-relations:<version>` |
-| `scripts/release-package` | 生成 `dist/offline-release-<version>/`（含已构建镜像的离线包） |
-| `scripts/release-source-package` | 生成 `dist/offline-source-release-<version>/`（源码 + wheelhouse，目标机构建） |
+| `scripts/release-package` | 生成仅含已构建镜像的离线包（备用交付方式） |
+| `scripts/release-source-package` | 生成完整源码、公共基础镜像和 wheelhouse 的标准离线交付包 |
 | `scripts/verify` | 本地基线验收：Compose 校验、镜像构建、插件装入验证、迁移无漂移检查 |
 
 `dist/` 为构建产物，不入库。镜像与依赖的锁定值见 [`locks/`](../../locks)。
@@ -102,5 +102,5 @@ netbox-access-relation/                 ← 发行根（distribution root）
 
 - 想理解**为什么这样设计** → `../explanation/architecture.md`
 - 想**跑起来开发** → `../guides/development.md`
-- 想**部署到生产 / 备份恢复** → `../guides/deployment/offline.md`
+- 想**部署到生产** → [Docker 部署](../guides/deployment/docker.md)；**备份恢复** → [关键命令](../guides/deployment/commands.md)
 - 想知道**每个目录是干什么的** → 本文档

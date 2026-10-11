@@ -5,6 +5,23 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-11
+
+### Changed
+
+- README 以 Docker Compose 为部署入口，明确已有运行镜像可跳过构建、项目脚本可选，宿主机无需安装 Python。
+- 集中维护镜像、备份与恢复的关键命令及参数，精简重复的离线和 Windows 部署说明。
+- 离线源码交付包含已跟踪的完整项目，排除本机配置、密钥和业务数据。
+- 生产 Compose 封装合并重复逻辑；回归测试使用独立 Compose 项目并自动清理。
+
+### Fixed
+
+- 备份暂停应用写入并记录兼容性元数据，恢复前校验备份；Windows 备份恢复改用二进制安全的文件复制。
+
+### Notes
+
+- 无新增数据库迁移，与 1.3.1 数据库结构兼容。
+
 ## [1.3.1] - 2026-10-02
 
 ### Fixed
@@ -12,6 +29,7 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 - 将运行时、开发、生产与离线交付的 NetBox 基线统一升级到 4.7.2，使用官方锁定 OCI digest。
 - API 和 XLSX 导入补充对象级权限校验；导入预检不再泄露不可见对象的存在性。
 - CSV 导出转义公式前缀；XLSX 导入增加行数与单元格长度上限。
+- 回归测试改用独立、固定命名的 Compose 项目，并在结束后自动清理其容器、网络与卷。
 
 ### Notes
 

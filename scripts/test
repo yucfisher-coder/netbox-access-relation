@@ -3,9 +3,20 @@ set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
+# Tests run in an isolated Compose project. Its containers, network, and
+# anonymous/named volumes are always removed, including on a test failure.
+# The development stack and its reusable volumes are never touched.
+cleanup() {
+  test_compose_cmd down --volumes --remove-orphans
+}
+trap cleanup EXIT
+
 # Test modules live outside the distributable package and are mounted only by
 # docker-compose.yml. This keeps both the wheel and the production image free
 # of development test code.
-dev_compose_cmd up --detach postgres redis redis-cache init
-NETBOX_DEBUG=false dev_compose_cmd run --rm --no-deps init \
-  /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py test tests --keepdb --verbosity 2
+test_compose_cmd up --detach --wait postgres redis redis-cache
+test_compose_cmd run --rm --no-deps init \
+  /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py makemigrations \
+  netbox_access_relations --check --dry-run
+NETBOX_DEBUG=false test_compose_cmd run --rm --no-deps init \
+  /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py test tests --verbosity 2
