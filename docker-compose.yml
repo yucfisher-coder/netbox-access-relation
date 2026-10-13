@@ -14,7 +14,7 @@ x-netbox: &netbox
     context: .
     dockerfile: docker/Dockerfile.dev
     args:
-      NETBOX_IMAGE: ${NETBOX_BASE_IMAGE:-docker.io/netboxcommunity/netbox:v4.7.2-5.1.1@sha256:6f7177d3ff4db2d65212420a4d8dffab22e15de0d767c2bf3b06d36e588df5e9}
+      NETBOX_IMAGE: ${NETBOX_BASE_IMAGE:-docker.io/netboxcommunity/netbox:v4.7.2-5.1.1@sha256:3cf9d3bd77aa186233b84d0ea1cf1755581d5e5678fa7d86ec3be62f79d0c643}
   image: netbox-access-relations-dev:local
   user: "netbox:root"
   env_file:

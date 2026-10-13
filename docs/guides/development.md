@@ -97,6 +97,35 @@ Dockerfile 也不会复制它。CI 会运行该测试，并校验 wheel 中不�
 每次测试使用固定的独立 Compose 项目 `netbox-access-relations-test`，结束时（包括失败时）自动删除
 该项目的容器、网络与卷；测试数据库不会写入可复用的开发项目 `netbox-access-relations-dev`。
 
+### Docker 资源命名与隔离
+
+| 用途 | Compose 项目/容器前缀 | 应用镜像 | 卷 |
+|---|---|---|---|
+| 日常开发 | `netbox-access-relations-dev` | `netbox-access-relations-dev:local` | 项目自动命名的 `postgres-data`、`media`、`redis-data` |
+| 自动回归 | `netbox-access-relations-test` | 同开发镜像 | 独立临时卷，测试结束自动清理 |
+| 本机生产验证 | `netbox-access-relations-prod-verify` | `netbox-access-relations:<版本>-verify` | `netbox-access-relations-prod-verify-postgres18-v1`、`netbox-access-relations-prod-verify-media-v1`、`netbox-access-relations-prod-verify-redis-v1` |
+| 正式生产 | `netbox-access-relations-prod` | `netbox-access-relations:<版本>` | 按[部署指南](deployment/docker.md)使用 external 卷 |
+
+容器沿用 Compose 的 `<项目>-<服务>-<序号>` 名称，不设置 `container_name`。网络沿用 `<项目>_default`。生产验证镜像使用单独标签，避免用未发布代码覆盖正式发布标签。
+
+本机生产验证复用 `docker-compose.prod.yml`，配置放在不入库、权限 `0600` 的 `.env.production.verify`；从 `.env.production.example` 复制后生成独立密钥，将镜像、端口和三个卷名改为上表对应值（推荐端口 `8001`）。预先创建三个 external 卷，再启动：
+
+```bash
+PRODUCTION_ENV_FILE=.env.production.verify docker compose \
+  --project-name netbox-access-relations-prod-verify \
+  --env-file .env.production.verify -f docker-compose.prod.yml up -d --wait
+```
+
+需要使用验证镜像运行完整基线验收时：
+
+```bash
+NETBOX_PRODUCTION_IMAGE=netbox-access-relations:1.3.3-verify scripts/verify
+```
+
+每次代码更新并完成相应检查后，都要同步重建验证镜像、更新 `netbox-access-relations-prod-verify` 的应用和 worker 容器，并确认 `http://127.0.0.1:8001` 可访问且运行最新代码。更新后按精确名称或 ID 清理确认废弃的本项目容器、镜像与卷；保留仍需使用的开发和验证数据卷，不能仅因未挂载就删除。
+
+生产验证只使用合成数据，禁止复用开发或正式生产卷。普通停止使用 `stop` 或不带 `--volumes` 的 `down`；退役时先核对卷的用途和内容，再按精确名称删除。不要使用全局 `docker system prune --volumes`，以免删除其他项目或待恢复的数据。
+
 ## 七、提交前验收
 
 `scripts/verify` 是本地完整基线验收，依次：

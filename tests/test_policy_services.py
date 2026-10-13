@@ -1,5 +1,10 @@
+import csv
+from io import StringIO
+
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 
 from netbox_access_relations.models import (
     AccessPolicy,
@@ -102,3 +107,96 @@ class PolicyServiceTests(TestCase):
             service.delete()
 
         self.assertTrue(PolicyService.objects.filter(pk=service.pk).exists())
+
+
+class ServiceQueryOrderingTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_superuser(username="service-sort-test"))
+        self.url = reverse("plugins:netbox_access_relations:policyservice_list")
+        source = ApplicationSystem.objects.create(name="Sort source")
+        target = ApplicationSystem.objects.create(name="Sort target")
+        self.policy = AccessPolicy.objects.create(name="Sort policy", source_system=source, target_system=target)
+        for protocol, start, end in [("tcp", 100, 100), ("tcp", 20, 30), ("udp", 20, 20), ("tcp", 20, 20)]:
+            PolicyService.objects.create(policy=self.policy, protocol=protocol, port_start=start, port_end=end)
+        PolicyService.objects.create(policy=self.policy, protocol="tcp", is_any=True)
+
+    def expressions(self, response):
+        return [(group["protocol"], group["port"]) for group in response.context["groups"]]
+
+    def test_numeric_port_order_and_deterministic_ties_in_both_directions(self):
+        expected = [("TCP", "20"), ("UDP", "20"), ("TCP", "20-30"), ("TCP", "100"), ("TCP/UDP", "ANY")]
+        for ordering, expressions in [("port", expected), ("-port", expected[::-1])]:
+            with self.subTest(ordering=ordering):
+                response = self.client.get(self.url, {"sort": ordering})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.expressions(response), expressions)
+                self.assertEqual(response.context["ordering_form"]["sort"].value(), ordering)
+
+    def test_protocol_order_and_invalid_sort_fallback(self):
+        expected = [("TCP", "20"), ("TCP", "20-30"), ("TCP", "100"), ("TCP/UDP", "ANY"), ("UDP", "20")]
+        for ordering, expressions in [("protocol", expected), ("-protocol", expected[::-1]), ("invalid", expected)]:
+            with self.subTest(ordering=ordering):
+                response = self.client.get(self.url, {"sort": ordering})
+                self.assertEqual(self.expressions(response), expressions)
+                if ordering == "invalid":
+                    self.assertEqual(response.context["ordering"], "protocol")
+                    self.assertEqual(response.context["query"], "sort=protocol")
+
+    def test_filtered_csv_uses_same_numeric_order_as_page(self):
+        params = {"protocol": "tcp", "sort": "-port"}
+        response = self.client.get(self.url, params)
+        exported = self.client.get(self.url, {**params, "export": "csv"})
+        self.assertEqual(exported.status_code, 200)
+        rows = list(csv.reader(StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual([tuple(row[:2]) for row in rows[1:]], self.expressions(response))
+        self.assertNotIn(("UDP", "20"), self.expressions(response))
+
+    def test_pagination_and_export_links_preserve_filter_and_sort(self):
+        for port in range(1000, 1050):
+            PolicyService.objects.create(policy=self.policy, protocol="tcp", port_start=port, port_end=port)
+        params = {"protocol": "tcp", "sort": "port"}
+        first = self.client.get(self.url, params)
+        second = self.client.get(self.url, {**params, "page": 2})
+        self.assertEqual(first.context["page_obj"].paginator.count, 54)
+        self.assertEqual(len(first.context["groups"]), 50)
+        self.assertEqual(self.expressions(second), [("TCP", "1047"), ("TCP", "1048"), ("TCP", "1049"), ("TCP/UDP", "ANY")])
+        exported = self.client.get(self.url, {**params, "page": 2, "export": "csv"})
+        rows = list(csv.reader(StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows) - 1, 54)
+        self.assertEqual([tuple(row[:2]) for row in rows[1:]], self.expressions(first) + self.expressions(second))
+        self.assertContains(first, 'protocol=tcp&amp;sort=port&amp;page=2')
+        self.assertContains(second, 'protocol=tcp&amp;sort=port&amp;export=csv')
+        self.assertEqual(self.expressions(second), self.expressions(self.client.get(self.url, {**params, "page": 2})))
+
+    def test_query_pages_follow_active_language_including_exports(self):
+        from django.utils.translation import override
+        matrix_url = reverse("plugins:netbox_access_relations:zone_matrix")
+        for language, service_title, matrix_title, sort_label, state in [
+            ("en", "Service query", "Zone matrix", "Port ascending", "Unmatched"),
+            ("zh-hans", "服务查询", "区域矩阵", "端口升序", "未匹配"),
+        ]:
+            with self.subTest(language=language), override(language):
+                # Bypass locale middleware so the active language is explicit.
+                from django.test import RequestFactory
+                from netbox_access_relations.views import PolicyServiceListView, ZoneMatrixView
+                from django.contrib.auth import get_user_model
+                user = get_user_model().objects.get(username="service-sort-test")
+                for view, url, title in [(PolicyServiceListView, self.url, service_title), (ZoneMatrixView, matrix_url, matrix_title)]:
+                    request = RequestFactory().get(url)
+                    request.user = user
+                    response = view.as_view()(request)
+                    self.assertContains(response, title)
+                    if view is PolicyServiceListView:
+                        self.assertContains(response, sort_label)
+                    else:
+                        self.assertContains(response, state)
+                    exported = RequestFactory().get(url, {"export": "csv"})
+                    exported.user = user
+                    content = view.as_view()(exported).content.decode("utf-8-sig")
+                    self.assertIn("Protocol" if language == "en" and view is PolicyServiceListView else
+                                  "Source zone" if language == "en" else
+                                  "协议" if view is PolicyServiceListView else "源区域", content)
+                    if language == "en":
+                        import re
+                        self.assertIsNone(re.search(r"[\u4e00-\u9fff]", content))
+                        self.assertIsNone(re.search(r"[\u4e00-\u9fff]", response.content.decode()))

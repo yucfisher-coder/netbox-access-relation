@@ -17,7 +17,7 @@ application_systems = PluginMenuItem(
         ),
         PluginMenuButton(
             link="plugins:netbox_access_relations:systems_import",
-            title="导入业务系统及地址",
+            title=_("Import application systems and addresses"),
             icon_class="mdi mdi-upload",
             permissions=(
                 "netbox_access_relations.add_applicationsystem",
@@ -39,7 +39,7 @@ access_policies = PluginMenuItem(
         ),
         PluginMenuButton(
             link="plugins:netbox_access_relations:policies_import",
-            title="导入访问关系及服务项",
+            title=_("Import access policies and services"),
             icon_class="mdi mdi-upload",
             permissions=("netbox_access_relations.add_accesspolicy", "netbox_access_relations.add_policyservice"),
         ),
@@ -48,13 +48,13 @@ access_policies = PluginMenuItem(
 
 service_query = PluginMenuItem(
     link="plugins:netbox_access_relations:policyservice_list",
-    link_text="服务查询",
+    link_text=_("Service query"),
     permissions=("netbox_access_relations.view_policyservice",),
 )
 
 zone_matrix = PluginMenuItem(
     link="plugins:netbox_access_relations:zone_matrix",
-    link_text="区域矩阵",
+    link_text=_("Zone matrix"),
     permissions=("netbox_access_relations.view_accesspolicy",),
 )
 

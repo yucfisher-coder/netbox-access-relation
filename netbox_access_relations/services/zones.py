@@ -12,6 +12,7 @@ from itertools import product
 
 import netaddr
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from ipam.models import Prefix
 
 
@@ -21,9 +22,9 @@ ZONE_FIELD = "security_zone"
 RULE_VERSION = "zone-prefix-v1"
 # 非 resolved 状态的中文标签
 STATE_LABELS = {
-    "unset": "未设置",
-    "unmatched": "未匹配",
-    "ambiguous": "歧义",
+    "unset": _("Unset"),
+    "unmatched": _("Unmatched"),
+    "ambiguous": _("Ambiguous"),
 }
 
 
@@ -60,7 +61,7 @@ def _bucket(state, value=""):
     if state == "resolved":
         value = str(value).strip()
         return ZoneBucket(f"zone:{value}", value, state)
-    return ZoneBucket(f"state:{state}", STATE_LABELS[state], state)
+    return ZoneBucket(f"state:{state}", str(STATE_LABELS[state]), state)
 
 
 def _prefixes_for_point(address, vrf_id):
@@ -163,10 +164,10 @@ def _resolve_prefix_evidence(obj):
 def _evidence(bucket, prefix=None):
     """根据 bucket 状态构造 ZoneEvidence，附带中文原因说明。"""
     reasons = {
-        "resolved": "已从最具体且完整覆盖的 Prefix 解析",
-        "unset": "覆盖 Prefix 未设置安全区域",
-        "unmatched": "未找到同 VRF 的覆盖 Prefix",
-        "ambiguous": "存在跨区域或同等候选歧义",
+        "resolved": _("Resolved from the most specific fully covering prefix"),
+        "unset": _("The covering prefix has no security zone"),
+        "unmatched": _("No covering prefix found in the same VRF"),
+        "ambiguous": _("Conflicting zones or equally specific candidates"),
     }
     return ZoneEvidence(bucket, prefix, reasons[bucket.state], timezone.now())
 
@@ -215,7 +216,7 @@ def system_zone_buckets(system):
 def system_zone_evidence(system):
     """返回业务系统每个地址的解析证据列表，用于详情页展示。"""
     if not system.addresses.all():
-        return [(None, _bucket("unmatched"), "业务系统没有关联 IPAM 地址")]
+        return [(None, _bucket("unmatched"), _("The application system has no associated IPAM addresses"))]
     return [
         (address, evidence.bucket, evidence.reason)
         for address in system.addresses.all()

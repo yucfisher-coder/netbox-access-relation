@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+source "${repo_root}/scripts/_release-common.sh"
 require_env
 
 docker compose --env-file "${env_file}" -f "${dev_compose}" config --quiet
@@ -10,10 +11,10 @@ PRODUCTION_ENV_FILE="${repo_root}/.env.production.example" docker compose \
 "${repo_root}/scripts/build"
 "${repo_root}/scripts/release-build"
 
-docker run --rm --entrypoint /opt/netbox/venv/bin/python netbox-access-relations:1.3.2 \
-  -c 'import importlib.metadata as m; assert m.version("netbox-access-relations") == "1.3.2"'
-docker run --rm --entrypoint /bin/sh netbox-access-relations:1.3.2 \
-  -c 'test ! -e /plugin && test ! -e /tmp/netbox_access_relations-1.3.2-py3-none-any.whl'
+docker run --rm --entrypoint /opt/netbox/venv/bin/python "${image_name}" \
+  -c 'import importlib.metadata as m, json; from utilities.release import load_release_data; assert load_release_data().version == "4.7.2"; assert m.version("netbox-access-relations") == "1.3.3"; assert not json.loads(m.distribution("netbox-access-relations").read_text("direct_url.json") or "{}").get("dir_info", {}).get("editable", False)'
+docker run --rm --entrypoint /bin/sh "${image_name}" \
+  -c 'test ! -e /plugin && test ! -e /tmp/netbox_access_relations-1.3.3-py3-none-any.whl'
 
 "${repo_root}/scripts/test"
 

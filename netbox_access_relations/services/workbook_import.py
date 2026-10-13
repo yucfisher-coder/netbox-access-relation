@@ -545,6 +545,12 @@ def _preview_policies(parsed, plan, user):
     for key, data in pending.items():
         if not services.get(key):
             _error(plan, "服务项", 0, "policy_name", data["policy_name"], "每个访问关系至少需要一个服务项。")
+    from .service_validation import validate_any_exclusivity
+    for key, keys in services.items():
+        try:
+            validate_any_exclusivity(item[1] for item in keys)
+        except ValidationError as exc:
+            _error(plan, "服务项", 0, "policy_name", pending[key]["policy_name"], str(exc.messages[0]))
     _validate_policy_uniqueness(pending, services, plan, user)
 
 

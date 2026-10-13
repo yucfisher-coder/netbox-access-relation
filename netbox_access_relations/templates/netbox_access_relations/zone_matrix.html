@@ -1,7 +1,7 @@
 {% extends 'base/layout.html' %}
-{% load form_helpers %}
+{% load form_helpers i18n %}
 
-{% block title %}区域矩阵{% endblock %}
+{% block title %}{% translate "Zone matrix" %}{% endblock %}
 
 {% block head %}
   {{ block.super }}
@@ -25,7 +25,7 @@
 <div class="row mb-3">
   <div class="col">
     <div class="card">
-      <div class="card-header"><strong>筛选</strong></div>
+      <div class="card-header"><strong>{% translate "Filters" %}</strong></div>
       <div class="card-body">
         <form method="get" class="row g-3 zone-matrix-filter">
           {% for field in form %}
@@ -34,8 +34,8 @@
           <div class="col-12 col-md-6 col-xl-3">
             <span class="filter-actions-label" aria-hidden="true">&nbsp;</span>
             <div class="filter-actions">
-              <button class="btn btn-primary" type="submit">应用</button>
-              <a class="btn btn-outline-secondary" href="{{ request.path }}">清除</a>
+              <button class="btn btn-primary" type="submit">{% translate "Apply" %}</button>
+              <a class="btn btn-outline-secondary" href="{{ request.path }}">{% translate "Clear" %}</a>
             </div>
           </div>
         </form>
@@ -45,26 +45,26 @@
 </div>
 
 <div class="row mb-3">
-  <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-secondary">去重访问关系</div><div class="fs-2">{{ policy_total }}</div></div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-secondary">区域组合计数合计</div><div class="fs-2">{{ cell_total }}</div></div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-body">一条关系可覆盖多个真实区域组合，因此组合计数合计可能大于去重关系数。</div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-secondary">{% translate "Distinct access policies" %}</div><div class="fs-2">{{ policy_total }}</div></div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-secondary">{% translate "Total zone combinations" %}</div><div class="fs-2">{{ cell_total }}</div></div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-body">{% translate "A policy may cover multiple zone combinations, so the combination total may exceed the distinct policy count." %}</div></div></div>
 </div>
 
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <strong>源区域 → 目标区域</strong>
-    <a class="btn btn-sm btn-outline-secondary" href="?{% if query %}{{ query }}&amp;{% endif %}export=csv">导出 CSV</a>
+    <strong>{% translate "Source zone → Target zone" %}</strong>
+    <a class="btn btn-sm btn-outline-secondary" href="?{% if query %}{{ query }}&amp;{% endif %}export=csv">{% translate "Export CSV" %}</a>
   </div>
   {% if buckets %}
   <div class="table-responsive">
     <table class="table table-hover table-bordered mb-0 text-center align-middle">
-      <thead><tr><th class="text-start">源区域</th>{% for bucket in buckets %}<th>{{ bucket.label }}</th>{% endfor %}<th>行合计</th></tr></thead>
+      <thead><tr><th class="text-start">{% translate "Source zone" %}</th>{% for bucket in buckets %}<th>{{ bucket.label }}</th>{% endfor %}<th>{% translate "Row total" %}</th></tr></thead>
       <tbody>
         {% for row in rows %}<tr><th class="text-start">{{ row.bucket.label }}</th>{% for cell in row.cells %}<td>{% if cell.url %}<a href="{{ cell.url }}" class="fw-bold">{{ cell.count }}</a>{% else %}<span class="text-secondary">0</span>{% endif %}</td>{% endfor %}<th>{{ row.total }}</th></tr>{% endfor %}
       </tbody>
-      <tfoot><tr><th class="text-start">列合计</th>{% for total in column_totals %}<th>{{ total }}</th>{% endfor %}<th>{{ cell_total }}</th></tr></tfoot>
+      <tfoot><tr><th class="text-start">{% translate "Column total" %}</th>{% for total in column_totals %}<th>{{ total }}</th>{% endfor %}<th>{{ cell_total }}</th></tr></tfoot>
     </table>
   </div>
-  {% else %}<div class="card-body text-secondary">当前筛选条件下没有可显示的访问关系。</div>{% endif %}
+  {% else %}<div class="card-body text-secondary">{% translate "No access policies match the current filters." %}</div>{% endif %}
 </div>
 {% endblock %}

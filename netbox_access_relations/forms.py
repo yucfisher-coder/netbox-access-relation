@@ -1,11 +1,15 @@
 """Web forms for access-relations objects."""
 
+import json
+
 from django import forms
 import netaddr
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, inlineformset_factory
+from django.db import router, transaction
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
-from ipam.choices import PrefixStatusChoices
+from django.utils.functional import cached_property
+from ipam.choices import IPAddressStatusChoices, IPRangeStatusChoices, PrefixStatusChoices
 from ipam.models import IPAddress, IPRange, Prefix, VRF
 from netbox.forms import NetBoxModelFilterSetForm, NetBoxModelForm, PrimaryModelFilterSetForm, PrimaryModelForm
 from utilities.exceptions import PermissionsViolation
@@ -28,6 +32,7 @@ from .services.ipam_writes import (
     apply_native_values,
     write_system_address,
 )
+from .services.service_validation import validate_any_exclusivity
 from .services.policy_uniqueness import find_duplicate_policies, service_key
 
 
@@ -77,17 +82,33 @@ class ApplicationSystemFilterForm(LocalizedStandardFieldsMixin, PrimaryModelFilt
     )
 
 
-class PolicyServiceInlineForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
-    protocol = forms.ChoiceField(choices=TransportProtocolChoices, required=False, label=_('Protocol'))
+class InlineChangeTrackingMixin:
+    @cached_property
+    def changed_data(self):
+        # NetBox's render timestamp changes on every request. Keep its stale-write
+        # validation, but do not treat it as an edit to an inline object.
+        return [name for name in super().changed_data if name != "_init_time"]
+
+
+class PolicyServiceInlineForm(InlineChangeTrackingMixin, LocalizedStandardFieldsMixin, NetBoxModelForm):
+    protocol = forms.ChoiceField(choices=(("", "---------"), *TransportProtocolChoices.choices), required=False, label=_('Protocol'))
     is_any = forms.BooleanField(
         required=False,
-        label="全协议 ANY",
-        help_text="覆盖所有 TCP 和 UDP 端口。",
+        label=_("All protocols ANY"),
+        help_text=_("Covers all TCP and UDP ports."),
     )
 
     class Meta:
         model = PolicyService
         fields = ("is_any", "protocol", "port_start", "port_end")
+
+    def _post_clean(self):
+        # Validate the final inline set, allowing deleted siblings to be replaced.
+        self.instance._defer_service_set_validation = True
+        try:
+            return super()._post_clean()
+        finally:
+            self.instance._defer_service_set_validation = False
 
     def clean(self):
         cleaned = super().clean() or self.cleaned_data
@@ -99,6 +120,24 @@ class PolicyServiceInlineForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
 
 
 class BasePolicyServiceInlineFormSet(BaseInlineFormSet):
+    def delete_existing(self, obj, commit=True):
+        if commit:
+            # The validated final formset must retain a service. Allow a temporary
+            # empty set inside save()'s transaction when replacing the last row.
+            type(obj).objects.filter(pk=obj.pk).delete()
+
+    def save(self, commit=True):
+        if not commit:
+            return super().save(commit=False)
+        using = router.db_for_write(AccessPolicy, instance=self.instance)
+        with transaction.atomic(using=using):
+            AccessPolicy.objects.using(using).select_for_update().get(pk=self.instance.pk)
+            result = super().save(commit=True)
+            if not self.instance.services.using(using).exists():
+                raise ValidationError(_("An access policy requires at least one service."))
+            validate_any_exclusivity(self.instance.services.using(using).values_list("is_any", flat=True))
+            return result
+
     def clean(self):
         super().clean()
         if any(self.errors):
@@ -111,6 +150,7 @@ class BasePolicyServiceInlineFormSet(BaseInlineFormSet):
         if not active_forms:
             raise ValidationError(_("An access policy requires at least one service."))
 
+        validate_any_exclusivity(form.cleaned_data.get("is_any", False) for form in active_forms)
         seen = set()
         for form in active_forms:
             protocol = form.cleaned_data.get("protocol")
@@ -184,7 +224,7 @@ class AccessPolicyForm(LocalizedStandardFieldsMixin, PrimaryModelForm):
                     names = "、".join(policy.name for policy in duplicates)
                     self.add_error(
                         None,
-                        _(f"已存在源系统、目标系统与服务项完全相同的访问关系：{names}。"),
+                        _("An access policy with the same source, target, and services already exists: %(names)s.") % {"names": names},
                     )
         return cleaned
 
@@ -228,12 +268,12 @@ class AccessPolicyFilterForm(LocalizedStandardFieldsMixin, PrimaryModelFilterSet
     system_id = DynamicModelChoiceField(queryset=ApplicationSystem.objects.all(), required=False, label=_("Either system"))
     protocol = forms.MultipleChoiceField(choices=TransportProtocolChoices, required=False, label=_("Protocol"))
     port = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port"))
-    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围起点")
-    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围终点")
+    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range start"))
+    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range end"))
     effective_status = forms.MultipleChoiceField(choices=AccessPolicyStatusChoices, required=False, label=_("Effective status"))
     ip = forms.CharField(required=False, label="IP 或网段")
-    source_zone = forms.CharField(required=False, label="源区域")
-    target_zone = forms.CharField(required=False, label="目标区域")
+    source_zone = forms.CharField(required=False, label=_("Source zone"))
+    target_zone = forms.CharField(required=False, label=_("Target zone"))
     zone = forms.CharField(required=False, label="任一区域")
 
     def clean_ip(self):
@@ -249,11 +289,11 @@ class AccessPolicyFilterForm(LocalizedStandardFieldsMixin, PrimaryModelFilterSet
         cleaned = super().clean()
         start, end, port = cleaned.get("port_start"), cleaned.get("port_end"), cleaned.get("port")
         if (start is None) != (end is None):
-            raise ValidationError("端口范围必须同时填写起点和终点。")
+            raise ValidationError(_("Enter both the start and end of the port range."))
         if start is not None and start > end:
-            raise ValidationError("端口范围起点不得大于终点。")
+            raise ValidationError(_("The port range start must not exceed the end."))
         if port is not None and start is not None:
-            raise ValidationError("单端口和端口范围只能选择一种。")
+            raise ValidationError(_("Choose either a single port or a port range."))
         return cleaned
 
 
@@ -261,19 +301,19 @@ class ZoneMatrixFilterForm(forms.Form):
     system_id = DynamicModelChoiceField(queryset=ApplicationSystem.objects.all(), required=False, label=_("Either system"))
     protocol = forms.MultipleChoiceField(choices=TransportProtocolChoices, required=False, label=_("Protocol"))
     port = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port"))
-    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围起点")
-    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围终点")
+    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range start"))
+    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range end"))
     effective_status = forms.MultipleChoiceField(choices=AccessPolicyStatusChoices, required=False, label=_("Effective status"))
 
     def clean(self):
         cleaned = super().clean()
         start, end, port = cleaned.get("port_start"), cleaned.get("port_end"), cleaned.get("port")
         if (start is None) != (end is None):
-            raise ValidationError("端口范围必须同时填写起点和终点。")
+            raise ValidationError(_("Enter both the start and end of the port range."))
         if start is not None and start > end:
-            raise ValidationError("端口范围起点不得大于终点。")
+            raise ValidationError(_("The port range start must not exceed the end."))
         if port is not None and start is not None:
-            raise ValidationError("单端口和端口范围只能选择一种。")
+            raise ValidationError(_("Choose either a single port or a port range."))
         return cleaned
 
 
@@ -284,6 +324,15 @@ class PolicyServiceForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
     class Meta:
         model = PolicyService
         fields = ("policy", "protocol", "is_any", "port_start", "port_end", "tags")
+
+
+class PolicyServiceOrderingForm(forms.Form):
+    sort = forms.ChoiceField(
+        label=_("Sort"),
+        choices=(("protocol", _("Protocol ascending")), ("-protocol", _("Protocol descending")),
+                 ("port", _("Port ascending")), ("-port", _("Port descending"))),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
 
 
 class PolicyServiceFilterForm(LocalizedStandardFieldsMixin, NetBoxModelFilterSetForm):
@@ -305,8 +354,8 @@ class PolicyServiceFilterForm(LocalizedStandardFieldsMixin, NetBoxModelFilterSet
     )
     is_any = forms.NullBooleanField(required=False, label=_("Any port"))
     port = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port"))
-    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围起点")
-    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label="端口范围终点")
+    port_start = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range start"))
+    port_end = forms.IntegerField(min_value=1, max_value=65535, required=False, label=_("Port range end"))
     source_system_id = DynamicModelMultipleChoiceField(
         queryset=ApplicationSystem.objects.all(), required=False, label=_("Source system")
     )
@@ -324,11 +373,11 @@ class PolicyServiceFilterForm(LocalizedStandardFieldsMixin, NetBoxModelFilterSet
         cleaned = super().clean()
         start, end, port = cleaned.get("port_start"), cleaned.get("port_end"), cleaned.get("port")
         if (start is None) != (end is None):
-            raise ValidationError("端口范围必须同时填写起点和终点。")
+            raise ValidationError(_("Enter both the start and end of the port range."))
         if start is not None and start > end:
-            raise ValidationError("端口范围起点不得大于终点。")
+            raise ValidationError(_("The port range start must not exceed the end."))
         if port is not None and start is not None:
-            raise ValidationError("单端口和端口范围只能选择一种。")
+            raise ValidationError(_("Choose either a single port or a port range."))
         return cleaned
 
 
@@ -357,7 +406,7 @@ class SystemAliasFilterForm(LocalizedStandardFieldsMixin, NetBoxModelFilterSetFo
     name = forms.CharField(required=False, label=_("Alias"))
 
 
-class SystemAddressForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
+class SystemAddressForm(InlineChangeTrackingMixin, LocalizedStandardFieldsMixin, NetBoxModelForm):
     """Link an existing IPAM object, or create/update one atomically."""
 
     OPERATION_LINK = OPERATION_LINK
@@ -437,6 +486,12 @@ class SystemAddressForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
         model = SystemAddress
         fields = ("system", "prefix", "ip_address", "ip_range", "tags")
 
+    native_status_choices = {
+        TYPE_PREFIX: PrefixStatusChoices,
+        TYPE_IP_ADDRESS: IPAddressStatusChoices,
+        TYPE_IP_RANGE: IPRangeStatusChoices,
+    }
+
     native_models = NATIVE_MODELS
     native_fields = NATIVE_FIELDS
 
@@ -461,6 +516,13 @@ class SystemAddressForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
             )
             self.fields["native_operation"].initial = self.OPERATION_LINK
         self.fields["native_type"].initial = native_type
+        selected_type = self.data.get(self.add_prefix("native_type"), native_type) if self.is_bound else native_type
+        self.fields["native_status"].choices = self.native_status_choices.get(selected_type, PrefixStatusChoices)
+        # Expose all native choices for client-side object type switching.
+        self.fields["native_status"].widget.attrs["data-status-choices"] = json.dumps({
+            key: [(value, str(label)) for value, label in choices]
+            for key, choices in self.native_status_choices.items()
+        })
         if native:
             self.initial.update(self._native_initial(native_type, native))
 
@@ -472,12 +534,12 @@ class SystemAddressForm(LocalizedStandardFieldsMixin, NetBoxModelForm):
             "native_description": native.description,
         }
         if native_type == SystemAddressForm.TYPE_PREFIX:
-            initial["native_prefix"] = native.prefix
+            initial["native_prefix"] = str(native.prefix)
         elif native_type == SystemAddressForm.TYPE_IP_ADDRESS:
-            initial["native_ip_address"] = native.address
+            initial["native_ip_address"] = str(native.address)
         else:
-            initial["native_range_start"] = native.start_address
-            initial["native_range_end"] = native.end_address
+            initial["native_range_start"] = str(native.start_address)
+            initial["native_range_end"] = str(native.end_address)
         return initial
 
     def clean(self):

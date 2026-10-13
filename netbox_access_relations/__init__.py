@@ -8,7 +8,7 @@ class AccessRelationsConfig(PluginConfig):
     name = "netbox_access_relations"
     verbose_name = _("Access Relations")
     description = _("Manage access relations using supported NetBox extension points.")
-    version = "1.3.2"
+    version = "1.3.3"
     author = "NetBox Access Relations maintainers"
     base_url = "access-relations"
     min_version = "4.7.2"
@@ -20,7 +20,7 @@ class AccessRelationsConfig(PluginConfig):
 
         from . import signals  # noqa: F401
 
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 config = AccessRelationsConfig
 
 __all__ = ("config",)

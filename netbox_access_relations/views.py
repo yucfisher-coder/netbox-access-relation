@@ -96,7 +96,7 @@ class ZoneMatrixView(PermissionRequiredMixin, View):
             rows.append({"bucket": source, "cells": cells, "total": sum(cell["count"] for cell in cells)})
         column_totals = [sum(counts.get((source.key, target.key), 0) for source in ordered) for target in ordered]
         context = {
-            "title": "区域矩阵", "form": form, "buckets": ordered, "rows": rows,
+            "title": _("Zone matrix"), "form": form, "buckets": ordered, "rows": rows,
             "column_totals": column_totals, "cell_total": sum(counts.values()),
             "policy_total": len(policies), "query": params.urlencode(),
         }
@@ -110,8 +110,8 @@ class ZoneMatrixView(PermissionRequiredMixin, View):
         response["Content-Disposition"] = 'attachment; filename="zone-matrix.csv"'
         response.write("\ufeff")
         writer = csv.writer(response)
-        _write_csv_row(writer, ["筛选条件", context["query"] or "无"])
-        _write_csv_row(writer, ["源区域", "目标区域", "访问关系数"])
+        _write_csv_row(writer, [_("Filter conditions"), context["query"] or _("None")])
+        _write_csv_row(writer, [_("Source zone"), _("Target zone"), _("Access policy count")])
         for row in context["rows"]:
             for target, cell in zip(context["buckets"], row["cells"]):
                 _write_csv_row(writer, [row["bucket"].label, target.label, cell["count"]])
@@ -567,7 +567,7 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
         return queryset.filter(policy_id__in=visible_policies)
 
     @staticmethod
-    def group_services(services):
+    def group_services(services, ordering="protocol"):
         """Group identical service expressions and retain their policy context."""
         groups = {}
         for service in services:
@@ -577,6 +577,7 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
             group = groups.setdefault(key, {
                 "protocol": "TCP/UDP" if service.is_any else service.get_protocol_display().upper(),
                 "port": str(service.port_display),
+                "_port_key": (service.is_any, service.port_start or 0, service.port_end or 0),
                 "policies": [],
                 "target_systems": [],
                 "_policy_ids": set(),
@@ -595,14 +596,25 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
             group["target_system_count"] = len(group["target_systems"])
             del group["_policy_ids"]
             del group["_target_ids"]
-        return sorted(groups.values(), key=lambda group: (group["protocol"], group["port"]))
+        # Numeric range boundaries give stable ordering across pages and exports.
+        field = ordering.lstrip("-")
+
+        def sort_key(group):
+            if field == "port":
+                return (*group["_port_key"], group["protocol"])
+            return (group["protocol"], *group["_port_key"])
+
+        return sorted(groups.values(), key=sort_key, reverse=ordering.startswith("-"))
 
     def get(self, request):
         filter_form = forms.PolicyServiceFilterForm(request.GET)
         restrict_form_fields(filter_form, request.user)
         filterset = filtersets.PolicyServiceFilterSet(request.GET, queryset=self.get_queryset(request))
         services = filterset.qs if filter_form.is_valid() and filterset.form.is_valid() else filterset.queryset.none()
-        groups = self.group_services(services)
+        ordering = request.GET.get("sort", "protocol")
+        if ordering not in {"protocol", "-protocol", "port", "-port"}:
+            ordering = "protocol"
+        groups = self.group_services(services, ordering)
         if request.GET.get("export") == "csv":
             return self.export_groups(groups)
 
@@ -611,8 +623,11 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
         params = request.GET.copy()
         params.pop("page", None)
         params.pop("export", None)
+        params["sort"] = ordering
         return render(request, self.template_name, {
-            "title": "服务查询",
+            "ordering": ordering,
+            "ordering_form": forms.PolicyServiceOrderingForm(initial={"sort": ordering}),
+            "title": _("Service query"),
             "filter_form": filter_form,
             "filter_errors": filter_form.errors or filterset.form.errors,
             "page_obj": page_obj,
@@ -627,7 +642,7 @@ class PolicyServiceListView(PermissionRequiredMixin, View):
         response["Content-Disposition"] = 'attachment; filename="service-query.csv"'
         response.write("\ufeff")
         writer = csv.writer(response)
-        _write_csv_row(writer, ["协议", "端口", "关联目标系统数", "目标系统", "访问关系"])
+        _write_csv_row(writer, [_("Protocol"), _("Port"), _("Target system count"), _("Target systems"), _("Access policies")])
         for group in groups:
             _write_csv_row(writer, [
                 group["protocol"],

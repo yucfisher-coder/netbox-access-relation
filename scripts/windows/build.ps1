@@ -6,11 +6,11 @@
 Test-EnvFile
 Assert-DockerRunning
 
-$baseImage = 'netboxcommunity/netbox:v4.7.2-5.1.1'
+$baseImage = 'docker.io/netboxcommunity/netbox:v4.7.2-5.1.1@sha256:3cf9d3bd77aa186233b84d0ea1cf1755581d5e5678fa7d86ec3be62f79d0c643'
 
 $lockedManifests = @{
-    'amd64' = 'sha256:fa7ffa268c39fb258bed80bd256360a525f1a129ee4ee06298f10d6708578eba'
-    'arm64' = 'sha256:801563a44551e2b05fc6985fc378068a0a4cd1087947bc0ecea073dd0928a3c6'
+    'amd64' = 'sha256:4cd4c0349c8c947d8a3214f6b71e6d42243e39f5a1a32fba2eff4d2b895cfbdc'
+    'arm64' = 'sha256:37c8a88a4010dcec69215e136bab2ee117e7ea90d37840dc06d564705955d623'
 }
 
 try {
@@ -25,9 +25,10 @@ if (-not $arch -or -not $lockedManifests.ContainsKey($arch)) {
 $locked = $lockedManifests[$arch]
 $repoDigests = docker image inspect $baseImage --format '{{join .RepoDigests "\n"}}' 2>$null
 
+$lockedIndex = 'sha256:3cf9d3bd77aa186233b84d0ea1cf1755581d5e5678fa7d86ec3be62f79d0c643'
 $matched = $false
 foreach ($line in $repoDigests) {
-    if ($line -and $line.Contains("@$locked")) { $matched = $true; break }
+    if ($line -and ($line.EndsWith("@$locked") -or $line.EndsWith("@$lockedIndex"))) { $matched = $true; break }
 }
 
 if (-not $matched) {

@@ -412,3 +412,168 @@ msgstr "变更日志说明"
 msgctxt "access relations standard field"
 msgid "Saved Filter"
 msgstr "已保存的筛选"
+
+msgid "Service query"
+msgstr "服务查询"
+
+msgid "Zone matrix"
+msgstr "区域矩阵"
+
+msgid "Filter service expressions"
+msgstr "筛选服务表达式"
+
+msgid "Query"
+msgstr "查询"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Please correct the filters and try again."
+msgstr "请修正筛选条件后重新查询。"
+
+msgid "Target systems by protocol and port"
+msgstr "相同协议与端口关联的目标系统"
+
+msgid "Export CSV"
+msgstr "导出 CSV"
+
+msgid "Target systems"
+msgstr "关联目标系统"
+
+msgid "Previous"
+msgstr "上一页"
+
+msgid "Next"
+msgstr "下一页"
+
+msgid "No service expressions match the current filters."
+msgstr "没有符合当前筛选条件的服务表达式。"
+
+msgid "Service expressions: %(count)s"
+msgstr "服务表达式：%(count)s"
+
+msgid "Page %(number)s of %(total)s"
+msgstr "第 %(number)s / %(total)s 页"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Distinct access policies"
+msgstr "去重访问关系"
+
+msgid "Total zone combinations"
+msgstr "区域组合计数合计"
+
+msgid "A policy may cover multiple zone combinations, so the combination total may exceed the distinct policy count."
+msgstr "一条关系可覆盖多个真实区域组合，因此组合计数合计可能大于去重关系数。"
+
+msgid "Source zone → Target zone"
+msgstr "源区域 → 目标区域"
+
+msgid "Source zone"
+msgstr "源区域"
+
+msgid "Target zone"
+msgstr "目标区域"
+
+msgid "Row total"
+msgstr "行合计"
+
+msgid "Column total"
+msgstr "列合计"
+
+msgid "No access policies match the current filters."
+msgstr "当前筛选条件下没有可显示的访问关系。"
+
+msgid "Sort"
+msgstr "排序"
+
+msgid "Protocol ascending"
+msgstr "协议升序"
+
+msgid "Protocol descending"
+msgstr "协议降序"
+
+msgid "Port ascending"
+msgstr "端口升序"
+
+msgid "Port descending"
+msgstr "端口降序"
+
+msgid "Port range start"
+msgstr "端口范围起点"
+
+msgid "Port range end"
+msgstr "端口范围终点"
+
+msgid "Enter both the start and end of the port range."
+msgstr "端口范围必须同时填写起点和终点。"
+
+msgid "The port range start must not exceed the end."
+msgstr "端口范围起点不得大于终点。"
+
+msgid "Choose either a single port or a port range."
+msgstr "单端口和端口范围只能选择一种。"
+
+msgid "Unset"
+msgstr "未设置"
+
+msgid "Unmatched"
+msgstr "未匹配"
+
+msgid "Ambiguous"
+msgstr "歧义"
+
+msgid "Filter conditions"
+msgstr "筛选条件"
+
+msgid "None"
+msgstr "无"
+
+msgid "Access policy count"
+msgstr "访问关系数"
+
+msgid "Target system count"
+msgstr "关联目标系统数"
+
+msgid "Resolved from the most specific fully covering prefix"
+msgstr "已从最具体且完整覆盖的 Prefix 解析"
+
+msgid "The covering prefix has no security zone"
+msgstr "覆盖 Prefix 未设置安全区域"
+
+msgid "No covering prefix found in the same VRF"
+msgstr "未找到同 VRF 的覆盖 Prefix"
+
+msgid "Conflicting zones or equally specific candidates"
+msgstr "存在跨区域或同等候选歧义"
+
+msgid "The application system has no associated IPAM addresses"
+msgstr "业务系统没有关联 IPAM 地址"
+
+msgid "Remove service"
+msgstr "移除服务项"
+
+msgid "All protocols ANY"
+msgstr "全协议 ANY"
+
+msgid "Covers all TCP and UDP ports."
+msgstr "覆盖所有 TCP 和 UDP 端口。"
+
+msgid "Add TCP or UDP services, or ANY covering all TCP/UDP ports. ANY does not require a protocol or ports."
+msgstr "添加 TCP、UDP 服务或覆盖全部 TCP/UDP 端口的 ANY；ANY 不需要选择协议或填写端口。"
+
+msgid "Impact:"
+msgstr "影响提示："
+
+msgid "Address changes immediately affect IPAM evidence and zone resolution for these access policies:"
+msgstr "修改地址会立即影响以下访问关系的 IPAM 证据与区域判定："
+
+msgid "An access policy with the same source, target, and services already exists: %(names)s."
+msgstr "已存在源系统、目标系统与服务项完全相同的访问关系：%(names)s。"
+
+msgid "ANY cannot coexist with other services in an access policy."
+msgstr "同一访问关系中，ANY 不能与其他服务端口共存。"
+
+msgid "ANY must be the only service in an access policy."
+msgstr "选择 ANY 时，该访问关系不能包含其他服务项。"

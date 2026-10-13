@@ -37,7 +37,7 @@ chmod 600 .env.production
 ```bash
 docker build \
   --file docker/Dockerfile.prod \
-  --tag netbox-access-relations:1.3.2 \
+  --tag netbox-access-relations:1.3.3 \
   .
 ```
 
@@ -89,7 +89,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 # 1. 先按关键命令指南完成备份并确认成功，再继续
 
 # 2. 获取包含本次更新的项目源码，并重新构建应用镜像
-docker build --file docker/Dockerfile.prod --tag netbox-access-relations:1.3.2 .
+docker build --file docker/Dockerfile.prod --tag netbox-access-relations:1.3.3 .
 
 # 3. 使用原有 external volumes 重新创建应用与 worker；不要使用 down -v
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d

@@ -19,7 +19,7 @@
       <div class="col-12 col-xl-9 offset-xl-3 d-flex flex-wrap align-items-center gap-3">
         <div class="service-header-copy flex-grow-1">
           <h2 class="mb-1">{% trans "Policy services" %}</h2>
-          <div class="text-secondary">添加 TCP、UDP 服务或一个覆盖全部 TCP/UDP 端口的 ANY；ANY 不需要选择协议或填写端口。</div>
+          <div class="text-secondary">{% trans "Add TCP or UDP services, or ANY covering all TCP/UDP ports. ANY does not require a protocol or ports." %} {% trans "ANY must be the only service in an access policy." %}</div>
         </div>
         <button type="button" class="btn btn-outline-primary" id="add-policy-service">
           <i class="mdi mdi-plus-thick" aria-hidden="true"></i> {% trans "Add service" %}
@@ -38,7 +38,8 @@
 
     <div id="policy-service-forms">
       {% for service_form in form.service_formset.forms %}
-        <div class="policy-service-form border rounded p-3 mb-3">
+        <div class="policy-service-form border rounded p-3 mb-3{% if service_form.DELETE.value %} d-none{% endif %}">
+          {{ service_form.non_field_errors }}
           {% for hidden in service_form.hidden_fields %}{{ hidden }}{% endfor %}
           {% for field in service_form.visible_fields %}
             {% if field.name == "protocol" %}<div class="service-protocol-field">{% render_field field %}</div>{% elif field.name == "port_start" or field.name == "port_end" %}<div class="service-port-field">{% render_field field %}</div>{% elif field.name != "DELETE" %}{% render_field field %}{% endif %}
@@ -84,7 +85,14 @@
       };
 
       const updateAnyFields = (serviceForm) => {
-        const anyField = serviceForm.querySelector('input[name$="-is_any"]');
+        if (serviceForm.querySelector('input[type="checkbox"][name$="-DELETE"]')?.checked) {
+          serviceForm.classList.add('d-none');
+          serviceForm.querySelectorAll('input, select, textarea').forEach(control => {
+            if (!control.name.endsWith('-DELETE') && !control.name.endsWith('-id') && !control.name.endsWith('-policy')) control.disabled = true;
+          });
+          return;
+        }
+        const anyField = serviceForm.querySelector('input[type="checkbox"][name$="-is_any"]');
         const protocolField = serviceForm.querySelector('select[name$="-protocol"]');
         if (!anyField || !protocolField) return;
         const protocolGroup = serviceForm.querySelector('.service-protocol-field');
@@ -123,7 +131,7 @@
       });
 
       container.addEventListener('change', (event) => {
-        if (event.target.matches('input[name$="-is_any"]')) updateAnyFields(event.target.closest('.policy-service-form'));
+        if (event.target.matches('input[type="checkbox"][name$="-is_any"]')) updateAnyFields(event.target.closest('.policy-service-form'));
       });
 
       container.addEventListener('click', (event) => {
@@ -131,8 +139,8 @@
         if (!removeButton || removeButton.disabled) return;
 
         const serviceForm = removeButton.closest('.policy-service-form');
-        serviceForm.querySelector('input[name$="-DELETE"]').checked = true;
-        serviceForm.classList.add('d-none');
+        serviceForm.querySelector('input[type="checkbox"][name$="-DELETE"]').checked = true;
+        updateAnyFields(serviceForm);
         updateRemoveButtons();
       });
 

@@ -7,6 +7,8 @@ from netbox.api.fields import ChoiceField
 from netbox.api.serializers import NetBoxModelSerializer, PrimaryModelSerializer
 
 from ..models import AccessPolicy, ActiveStatusChoices, ApplicationSystem, PolicyService, SystemAddress, SystemAlias, TransportProtocolChoices
+from ..services.service_validation import validate_any_exclusivity
+from django.core.exceptions import ValidationError as DjangoValidationError
 from ..services.policy_uniqueness import find_duplicate_policies, get_policy_service_keys, service_key
 
 
@@ -154,6 +156,10 @@ class AccessPolicySerializer(PrimaryModelSerializer):
                 raise serializers.ValidationError({"services": "An access policy requires at least one service."})
             if len(keys) != len(submitted_services):
                 raise serializers.ValidationError({"services": "Duplicate services are not allowed within an access policy."})
+            try:
+                validate_any_exclusivity(service["is_any"] for service in submitted_services)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError({"services": exc.messages}) from exc
             source, target = attrs.get("source_system"), attrs.get("target_system")
             source_id, target_id = getattr(source, "pk", source), getattr(target, "pk", target)
             if source_id and target_id:
@@ -241,6 +247,10 @@ class PolicyServiceSerializer(NetBoxModelSerializer):
             attrs.get("port_start", self.instance.port_start if self.instance else None),
             attrs.get("port_end", self.instance.port_end if self.instance else None),
         ))
+        try:
+            validate_any_exclusivity(key[1] for key in keys)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"is_any": exc.messages}) from exc
         duplicates = find_duplicate_policies(
             policy.source_system_id,
             policy.target_system_id,

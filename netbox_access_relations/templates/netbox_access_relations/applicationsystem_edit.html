@@ -5,8 +5,8 @@
 {% block form %}
   {% if affected_policies %}
     <div class="alert alert-warning" role="alert">
-      <strong>影响提示：</strong>修改地址会立即影响以下访问关系的 IPAM 证据与区域判定：
-      {% for policy in affected_policies %}<a href="{{ policy.get_absolute_url }}">{{ policy }}</a>{% if not forloop.last %}、{% endif %}{% endfor %}。
+      <strong>{% trans "Impact:" %}</strong> {% trans "Address changes immediately affect IPAM evidence and zone resolution for these access policies:" %}
+      {% for policy in affected_policies %}<a href="{{ policy.get_absolute_url }}">{{ policy }}</a>{% if not forloop.last %}、{% endif %}{% endfor %}.
     </div>
   {% endif %}
   {% include 'htmx/form.html' %}
@@ -59,6 +59,13 @@
       const setVisibility = (row, clearHidden = false) => {
         const operation = selectedValue(row, 'native_operation');
         const type = selectedValue(row, 'native_type');
+        const status = row.querySelector('[name$="-native_status"]');
+        if (status) {
+          const choices = JSON.parse(status.dataset.statusChoices)[type] || [];
+          const previous = status.value;
+          status.replaceChildren(...choices.map(([value, label]) => new Option(label, value)));
+          status.value = choices.some(([value]) => value === previous) ? previous : 'active';
+        }
         const visible = new Set(['native_operation', 'native_type', 'DELETE']);
         if (operation === 'link') visible.add(type);
         if (operation === 'create' || operation === 'update') {

@@ -392,6 +392,10 @@ class PolicyService(NetBoxModel):
 
     def clean(self):
         super().clean()
+        if self.policy_id and not getattr(self, "_defer_service_set_validation", False):
+            from .services.service_validation import validate_any_exclusivity
+            siblings = type(self).objects.filter(policy_id=self.policy_id).exclude(pk=self.pk)
+            validate_any_exclusivity([self.is_any, *siblings.values_list("is_any", flat=True)])
         if self.is_any:
             if self.port_start is not None or self.port_end is not None:
                 raise ValidationError(_("ANY services must not specify ports."))
