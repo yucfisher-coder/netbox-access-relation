@@ -29,7 +29,7 @@
 |---|---|---|---|
 | 业务系统 | `system_name` | `status`、`description`、`comments` | 每行新增一个尚不存在的业务系统；已存在的规范名只作为后续工作表引用，不覆盖字段 |
 | 系统别名 | `system_name`、`alias` | 无 | 为精确匹配的业务系统新增别名；完全重复项跳过，命名空间冲突报错 |
-| 系统地址 | `system_name`、`object_type`、`address` | `range_end`、`vrf_rd`、`native_status`、`native_description` | `object_type` 仅允许 `prefix`、`ip_address`、`ip_range`；IPRange 用 `address` 表示起点并要求 `range_end`，其他类型不得填写 `range_end`；空 `vrf_rd` 表示全局 VRF |
+| 系统地址 | `system_name`、`object_type`、`address` | `range_end`、`vrf_rd`、`native_status`、`native_description` | `object_type` 仅允许 `prefix`、`ip_address`、`ip_range`；IPAddress 必须带掩码，不能使用 `/0`；IPRange 起止地址均必须显式带掩码，且 IP 版本、掩码一致，例如 `10.20.1.10/24` 至 `10.20.1.20/24`；其他类型不得填写 `range_end`；空 `vrf_rd` 表示全局 VRF；预检执行原生 IPAM 校验 |
 
 系统地址值在预检时先规范化，再以对象类型、规范化地址（IPRange 使用起止值）和 `vrf_rd` 精确匹配。
 模板不包含数据库主键、区域值、操作类型、更新标记或删除标记。区域始终实时派生；“关联已有”与

@@ -21,7 +21,7 @@ from django.views import View
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from extras.ui.panels import CustomFieldsPanel, TagsPanel
-from netbox.object_actions import AddObject, BulkExport, CloneObject, DeleteObject, EditObject, ObjectAction
+from netbox.object_actions import AddObject, BulkDelete, BulkEdit, BulkExport, CloneObject, DeleteObject, EditObject, ObjectAction
 from netbox.ui import layout
 from netbox.ui import actions as panel_actions
 from netbox.ui.panels import CommentsPanel, ObjectsTablePanel
@@ -121,6 +121,11 @@ class ZoneMatrixView(PermissionRequiredMixin, View):
 class WorkbookUploadForm(django_forms.Form):
     workbook = django_forms.FileField(label="XLSX 工作簿")
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Confirmation failures attach errors to an unbound upload form.
+        self.cleaned_data = {}
+
     def clean_workbook(self):
         upload = self.cleaned_data["workbook"]
         if not upload.name.lower().endswith(".xlsx"):
@@ -190,7 +195,9 @@ class WorkbookImportView(PermissionRequiredMixin, View):
             return self._render(request, form, status=400)
         except ValidationError as exc:
             form = WorkbookUploadForm()
-            form.add_error(None, exc)
+            # Model errors may refer to IPAM fields absent from this upload form.
+            # Flatten the error dictionary before attaching non-field errors.
+            form.add_error(None, ValidationError(exc.messages))
             return self._render(request, form, status=409)
         except PermissionsViolation:
             form = WorkbookUploadForm()
@@ -331,7 +338,7 @@ class ApplicationSystemListView(ExcelCompatibleCsvExportMixin, generic.ObjectLis
     filterset = filtersets.ApplicationSystemFilterSet
     filterset_form = forms.ApplicationSystemFilterForm
     table = tables.ApplicationSystemTable
-    actions = (AddObject, ApplicationSystemImportAction, BulkExport)
+    actions = (AddObject, ApplicationSystemImportAction, BulkExport, BulkEdit, BulkDelete)
 
 
 @register_model_view(ApplicationSystem)
@@ -399,6 +406,21 @@ class ApplicationSystemEditView(generic.ObjectEditView):
 @register_model_view(ApplicationSystem, "delete")
 class ApplicationSystemDeleteView(generic.ObjectDeleteView):
     queryset = ApplicationSystem.objects.all()
+
+
+@register_model_view(ApplicationSystem, "bulk_edit", path="edit", detail=False)
+class ApplicationSystemBulkEditView(generic.BulkEditView):
+    queryset = ApplicationSystem.objects.all()
+    filterset = filtersets.ApplicationSystemFilterSet
+    table = tables.ApplicationSystemTable
+    form = forms.ApplicationSystemBulkEditForm
+
+
+@register_model_view(ApplicationSystem, "bulk_delete", path="delete", detail=False)
+class ApplicationSystemBulkDeleteView(generic.BulkDeleteView):
+    queryset = ApplicationSystem.objects.all()
+    filterset = filtersets.ApplicationSystemFilterSet
+    table = tables.ApplicationSystemTable
 
 
 @register_model_view(SystemAlias, "list", path="", detail=False)
@@ -482,7 +504,7 @@ class AccessPolicyListView(ExcelCompatibleCsvExportMixin, generic.ObjectListView
     filterset = filtersets.AccessPolicyFilterSet
     filterset_form = forms.AccessPolicyFilterForm
     table = tables.AccessPolicyTable
-    actions = (AddObject, AccessPolicyImportAction, BulkExport)
+    actions = (AddObject, AccessPolicyImportAction, BulkExport, BulkEdit, BulkDelete)
 
 
 @register_model_view(AccessPolicy)
@@ -550,6 +572,21 @@ class AccessPolicyEditView(generic.ObjectEditView):
 @register_model_view(AccessPolicy, "delete")
 class AccessPolicyDeleteView(generic.ObjectDeleteView):
     queryset = AccessPolicy.objects.all()
+
+
+@register_model_view(AccessPolicy, "bulk_edit", path="edit", detail=False)
+class AccessPolicyBulkEditView(generic.BulkEditView):
+    queryset = AccessPolicy.objects.all()
+    filterset = filtersets.AccessPolicyFilterSet
+    table = tables.AccessPolicyTable
+    form = forms.AccessPolicyBulkEditForm
+
+
+@register_model_view(AccessPolicy, "bulk_delete", path="delete", detail=False)
+class AccessPolicyBulkDeleteView(generic.BulkDeleteView):
+    queryset = AccessPolicy.objects.all()
+    filterset = filtersets.AccessPolicyFilterSet
+    table = tables.AccessPolicyTable
 
 
 @register_model_view(PolicyService, "list", path="", detail=False)

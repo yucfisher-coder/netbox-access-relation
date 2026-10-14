@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
-from ipaddress import ip_address, ip_interface, ip_network
+from ipaddress import ip_interface, ip_network
 from zipfile import ZipFile
 
 from django.core.exceptions import ValidationError
@@ -53,8 +53,8 @@ SYSTEM_FIELD_GUIDE = (
     ("系统别名", "alias", "必填；全局唯一的替代名称。一个业务系统可用多行配置多个别名。", "BILL"),
     ("系统地址", "system_name", "必填；必须精确填写业务系统规范名，不能填写别名。", "Billing"),
     ("系统地址", "object_type", "必填；从下拉框选择 prefix、ip_address 或 ip_range。", "prefix"),
-    ("系统地址", "address", "必填；prefix 填 CIDR；ip_address 填带掩码的主机地址；ip_range 填起始 IP。", "10.20.0.0/24"),
-    ("系统地址", "range_end", "仅 ip_range 必填并填写结束 IP；prefix 和 ip_address 必须留空。", "10.20.1.20"),
+    ("系统地址", "address", "必填；prefix 填 CIDR；ip_address 和 ip_range 起始地址必须显式填写 /掩码，不得省略。", "10.20.0.0/24"),
+    ("系统地址", "range_end", "仅 ip_range 必填；结束 IP 必须带 /掩码，且与起始地址的 IP 版本、掩码一致；其他类型留空。", "10.20.1.20/24"),
     ("系统地址", "vrf_rd", "可选；填写已有 VRF 的精确 RD。留空表示全局路由表。", "65000:10"),
     ("系统地址", "native_status", "可选；创建原生 IPAM 对象时使用。对象已存在时必须与其当前状态一致。", "active"),
     ("系统地址", "native_description", "可选；创建原生 IPAM 对象时使用。对象已存在时必须与其当前描述一致。", "Billing production subnet"),
@@ -65,7 +65,7 @@ SYSTEM_EXAMPLES = (
     ("系统别名", "同一系统的两个别名（分别占一行）", "Billing | BILL；Billing | Payment Billing"),
     ("系统地址", "Prefix / 网段", "Billing | prefix | 10.20.0.0/24 | [留空] | 65000:10 | active | Billing subnet"),
     ("系统地址", "IP address / 单个地址", "Billing | ip_address | 10.20.0.15/32 | [留空] | 65000:10 | active | Billing VIP"),
-    ("系统地址", "IP range / 地址范围", "Billing | ip_range | 10.20.1.10 | 10.20.1.20 | 65000:10 | active | Billing pool"),
+    ("系统地址", "IP range / 地址范围", "Billing | ip_range | 10.20.1.10/24 | 10.20.1.20/24 | 65000:10 | active | Billing pool"),
 )
 
 POLICY_FIELD_GUIDE = (
@@ -366,6 +366,15 @@ def _preview_address(row, data, pending, seen, plan, user):
         _error(plan, "系统地址", row, "address", data.get("address"), "存在多个精确候选，不能猜测选择。")
         return
     native = candidates.first()
+    if native is None:
+        candidate = model(**lookup, status=data.get("native_status") or "active", description=data.get("native_description") or "")
+        try:
+            # Apply the same rules as the native write, including uniqueness,
+            # populated ranges, status choices, and maximum range size.
+            candidate.full_clean(exclude=["size"] if native_type == TYPE_IP_RANGE else None)
+        except ValidationError as exc:
+            _error(plan, "系统地址", row, "address", data.get("address"), "；".join(exc.messages))
+            return
     if native and not model.objects.restrict(user, "view").filter(pk=native.pk).exists():
         _error(plan, "系统地址", row, "address", data.get("address"), "对象不存在或无权查看。")
         return
@@ -404,13 +413,26 @@ def _normalize_address(native_type, start, end):
     if native_type == TYPE_IP_ADDRESS:
         if end:
             raise ValueError("IP 地址不得填写 range_end。")
-        return str(ip_interface(str(start)))
+        address = _masked_interface(start)
+        if address.network.prefixlen == 0:
+            raise ValueError("IP 地址不得使用 /0 掩码。")
+        return str(address)
     if not end:
         raise ValueError("IPRange 必须填写 range_end。")
-    first, last = ip_address(str(start).split("/")[0]), ip_address(str(end).split("/")[0])
-    if first.version != last.version or first > last:
+    first, last = _masked_interface(start), _masked_interface(end)
+    if first.version != last.version or first.ip > last.ip:
         raise ValueError("地址范围的起止值无效。")
+    if first.network.prefixlen != last.network.prefixlen:
+        raise ValueError("IPRange 起止地址的掩码必须一致。")
     return f"{first}-{last}"
+
+
+def _masked_interface(value):
+    text = str(value).strip()
+    if "/" not in text:
+        raise ValueError("IP 地址必须显式填写 /掩码，例如 10.20.0.15/24 或 2001:db8::1/64。")
+    address = ip_interface(text)
+    return address
 
 
 def _native_lookup(native_type, normalized, vrf):
@@ -454,8 +476,8 @@ def _validate_pending_native_address_conflicts(plan):
 
 
 def _ranges_overlap(first, second):
-    first_start, first_end = (ip_address(value) for value in first.split("-", 1))
-    second_start, second_end = (ip_address(value) for value in second.split("-", 1))
+    first_start, first_end = (ip_interface(value).ip for value in first.split("-", 1))
+    second_start, second_end = (ip_interface(value).ip for value in second.split("-", 1))
     return first_start.version == second_start.version and first_start <= second_end and second_start <= first_end
 
 

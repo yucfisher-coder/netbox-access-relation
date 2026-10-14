@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from django.utils.functional import cached_property
 from ipam.choices import IPAddressStatusChoices, IPRangeStatusChoices, PrefixStatusChoices
 from ipam.models import IPAddress, IPRange, Prefix, VRF
-from netbox.forms import NetBoxModelFilterSetForm, NetBoxModelForm, PrimaryModelFilterSetForm, PrimaryModelForm
+from netbox.forms import NetBoxModelFilterSetForm, NetBoxModelForm, PrimaryModelBulkEditForm, PrimaryModelFilterSetForm, PrimaryModelForm
 from utilities.exceptions import PermissionsViolation
 from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultipleChoiceField
 from utilities.forms.rendering import FieldSet
@@ -80,6 +80,22 @@ class ApplicationSystemFilterForm(LocalizedStandardFieldsMixin, PrimaryModelFilt
         required=False,
         label=_("Co-located"),
     )
+
+
+class ApplicationSystemBulkEditForm(LocalizedStandardFieldsMixin, PrimaryModelBulkEditForm):
+    model = ApplicationSystem
+    status = forms.ChoiceField(choices=(("", "---------"), *ActiveStatusChoices.choices), required=False, label=_("Status"))
+    fieldsets = (FieldSet("status", "description"),)
+    nullable_fields = ("description",)
+
+
+class AccessPolicyBulkEditForm(LocalizedStandardFieldsMixin, PrimaryModelBulkEditForm):
+    model = AccessPolicy
+    category = forms.CharField(max_length=100, required=False, label=_("Category"))
+    valid_from = forms.DateTimeField(required=False, label=_("Valid from"))
+    valid_until = forms.DateTimeField(required=False, label=_("Valid until"))
+    fieldsets = (FieldSet("category", "valid_from", "valid_until", "description"),)
+    nullable_fields = ("category", "valid_from", "valid_until", "description")
 
 
 class InlineChangeTrackingMixin:

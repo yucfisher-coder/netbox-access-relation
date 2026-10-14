@@ -119,7 +119,7 @@ PRODUCTION_ENV_FILE=.env.production.verify docker compose \
 需要使用验证镜像运行完整基线验收时：
 
 ```bash
-NETBOX_PRODUCTION_IMAGE=netbox-access-relations:1.3.3-verify scripts/verify
+NETBOX_PRODUCTION_IMAGE=netbox-access-relations:1.3.4-verify scripts/verify
 ```
 
 每次代码更新并完成相应检查后，都要同步重建验证镜像、更新 `netbox-access-relations-prod-verify` 的应用和 worker 容器，并确认 `http://127.0.0.1:8001` 可访问且运行最新代码。更新后按精确名称或 ID 清理确认废弃的本项目容器、镜像与卷；保留仍需使用的开发和验证数据卷，不能仅因未挂载就删除。
