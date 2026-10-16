@@ -8,12 +8,12 @@
 
 ## 项目状态
 
-当前发布版本 **1.3.4**。首个生产版本 **1.0.0** 已于 2026-09-22 完成发布门禁。当前包含 `ApplicationSystem`、`SystemAlias`、
+当前发布版本 **1.3.5**。首个生产版本 **1.0.0** 已于 2026-09-22 完成发布门禁。当前包含 `ApplicationSystem`、`SystemAlias`、
 `SystemAddress`、`AccessPolicy` 和 `PolicyService` 五个业务模型，数据结构基线固定为迁移
 `0001`～`0006`。核心页面、导入、服务查询和区域矩阵已经实现；ARM64 不可变镜像、离线启动、
 版本化生产卷和隔离恢复演练均已通过。部署到实际生产主机前须配置真实密钥、域名，并准备匹配目标架构的镜像。
 
-版本策略：不影响数据结构的修复和常规增强进入当前次版本的补丁版本（如 `1.3.4`）；涉及仓库结构、构建体系调整，或数据库模型/约束变化时进入新的次版本。
+版本策略：不影响数据结构的修复和常规增强进入当前次版本的补丁版本（如 `1.3.5`）；涉及仓库结构、构建体系调整，或数据库模型/约束变化时进入新的次版本。
 
 ## 文档索引
 
@@ -36,7 +36,7 @@
 
 ### 发布
 - [变更日志](CHANGELOG.md)
-- [1.3.4 发布说明](docs/releases/1.3.4.md)
+- [1.3.5 发布说明](docs/releases/1.3.5.md)
 
 ## 快速开始：本地开发（Linux/macOS）
 
@@ -72,7 +72,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ## CI/CD 与发布
 
 - **PR 门禁**：`.github/workflows/ci.yml` 在每个 PR 上并行执行 Compose 配置校验、插件 wheel 构建，以及开发镜像构建（镜像构建同时验证插件 wheel 能装入真实 NetBox 运行环境）。
-- **发布**：推送 `v*` 标签（如 `v1.3.4`）触发 `.github/workflows/release.yml`，构建 wheel 与生产镜像，将镜像推送到 `ghcr.io/<owner>/<repo>/netbox-access-relations:<version>`，并创建 GitHub Release 挂载 wheel、`SHA256SUMS` 与 `IMAGE_ID`。
+- **发布**：推送 `v*` 标签（如 `v1.3.5`）触发 `.github/workflows/release.yml`，构建 wheel 与生产镜像，将镜像推送到 `ghcr.io/<owner>/<repo>/netbox-access-relations:<version>`，并创建 GitHub Release 挂载 wheel、`SHA256SUMS` 与 `IMAGE_ID`。
 - **离线源码交付包**在受控构建机上用 `scripts/release-source-package` 生成；目标机使用包内镜像和 wheel 完全断网构建，不依赖 CI。
 
 ## 许可与支持

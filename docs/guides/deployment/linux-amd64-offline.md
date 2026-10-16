@@ -10,11 +10,11 @@
 
 ## 目标机部署
 
-将完整的 `dist/offline-source-release-1.3.4/` 目录转入离线服务器，然后执行：
+将完整的 `dist/offline-source-release-1.3.5/` 目录转入离线服务器，然后执行：
 
 ```bash
 sudo install -d -m 0750 /opt/netbox-access-relations
-sudo cp -a /mnt/release/offline-source-release-1.3.4/. /opt/netbox-access-relations/
+sudo cp -a /mnt/release/offline-source-release-1.3.5/. /opt/netbox-access-relations/
 cd /opt/netbox-access-relations
 sha256sum --check SHA256SUMS
 docker load --input images.tar

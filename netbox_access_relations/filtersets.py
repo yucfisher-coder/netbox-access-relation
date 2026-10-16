@@ -2,7 +2,8 @@
 
 import django_filters
 import netaddr
-from django.db.models import Q
+from django.db.models import Q, TextField
+from django.db.models.functions import Cast
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from netbox.filtersets import NetBoxModelFilterSet, PrimaryModelFilterSet
@@ -10,6 +11,41 @@ from utilities.filters import MultiValueNumberFilter
 
 from .models import AccessPolicy, ActiveStatusChoices, ApplicationSystem, PolicyService, SystemAddress, SystemAlias, TransportProtocolChoices
 from .services.zones import system_zone_buckets
+
+
+def _search_fields(queryset, value, fields):
+    """Search scalar, JSON and native IPAM fields without unsupported inet lookups."""
+    value = value.strip()
+    if not value:
+        return queryset
+    groups = {}
+    for field in fields:
+        parts = field.split("__")
+        depth = 2 if parts[0] in ("source_system", "target_system") and len(parts) > 2 else 1
+        group = "__".join(parts[:depth]) if len(parts) > 1 else "scalar"
+        groups.setdefault(group, []).append(field)
+    matches = Q(pk__in=[])
+    for group_fields in groups.values():
+        query = Q()
+        annotations = {}
+        for index, field in enumerate(group_fields):
+            alias = f"_quick_search_{index}"
+            annotations[alias] = Cast(field, output_field=TextField())
+            query |= Q(**{f"{alias}__icontains": value})
+        candidates = queryset.model.objects.alias(**annotations).filter(query).order_by().values("pk")
+        matches |= Q(pk__in=candidates)
+    return queryset.filter(matches).distinct()
+
+
+SYSTEM_SEARCH_FIELDS = (
+    "name", "aliases__name", "addresses__prefix__prefix",
+    "addresses__ip_address__address", "addresses__ip_range__start_address",
+    "addresses__ip_range__end_address",
+)
+POLICY_SEARCH_FIELDS = ("name", "category") + tuple(
+    f"{side}_system__{field}"
+    for side in ("source", "target") for field in SYSTEM_SEARCH_FIELDS
+)
 
 
 def _address_interval(link):
@@ -50,14 +86,7 @@ class ApplicationSystemFilterSet(PrimaryModelFilterSet):
         fields = ("id", "name", "status", "is_co_located", "description")
 
     def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(
-            Q(name__icontains=value)
-            | Q(aliases__name__icontains=value)
-            | Q(description__icontains=value)
-            | Q(comments__icontains=value)
-        ).distinct()
+        return _search_fields(queryset, value, SYSTEM_SEARCH_FIELDS)
 
 
 class SystemAliasFilterSet(NetBoxModelFilterSet):
@@ -105,13 +134,7 @@ class AccessPolicyFilterSet(PrimaryModelFilterSet):
         fields = ("id", "name", "category", "source_system_id", "target_system_id")
 
     def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(
-            Q(name__icontains=value) | Q(category__icontains=value)
-            | Q(source_system__name__icontains=value) | Q(target_system__name__icontains=value)
-            | Q(description__icontains=value) | Q(comments__icontains=value)
-        ).distinct()
+        return _search_fields(queryset, value, POLICY_SEARCH_FIELDS)
 
     def filter_system(self, queryset, name, values):
         return queryset.filter(Q(source_system_id__in=values) | Q(target_system_id__in=values))

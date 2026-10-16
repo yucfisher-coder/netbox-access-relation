@@ -1,0 +1,52 @@
+<script>
+(() => {
+  const headerSelector = 'thead input[type="checkbox"].toggle';
+  const rowSelector = 'tbody tr:not(.d-none):not([hidden]) input[type="checkbox"][name="pk"]:not(:disabled)';
+
+  function syncTable(table) {
+    const header = table.querySelector(headerSelector);
+    if (!header) return;
+    const rows = Array.from(table.querySelectorAll(rowSelector));
+    const selected = rows.filter(row => row.checked).length;
+    const all = rows.length > 0 && selected === rows.length;
+    header.checked = all;
+    header.indeterminate = selected > 0 && !all;
+    header.disabled = rows.length === 0;
+    header.setAttribute('aria-checked', header.indeterminate ? 'mixed' : String(all));
+
+    // Keep NetBox's separate, explicit selection across all result pages.
+    const form = table.closest('form');
+    const card = form?.querySelector('#select-all-box');
+    if (card) {
+      card.classList.toggle('d-none', !all);
+      if (!all) {
+        const confirmation = card.querySelector('input[name="_all"]');
+        if (confirmation?.checked) {
+          confirmation.checked = false;
+          confirmation.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+  }
+
+  function syncTables() {
+    document.querySelectorAll('table').forEach(syncTable);
+  }
+
+  // Delegation also handles tables replaced by HTMX pagination and sorting.
+  // Run after the native checkbox handlers and before the sticky action sync.
+  document.addEventListener('change', event => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const table = input.closest('table');
+    if (!table || !input.matches(`${headerSelector}, input[type="checkbox"][name="pk"]`)) return;
+    if (input.matches(headerSelector)) {
+      table.querySelectorAll(rowSelector).forEach(row => { row.checked = input.checked; });
+    }
+    syncTables();
+  });
+  document.addEventListener('DOMContentLoaded', syncTables);
+  document.addEventListener('htmx:afterSettle', syncTables);
+  window.addEventListener('pageshow', syncTables);
+})();
+</script>
