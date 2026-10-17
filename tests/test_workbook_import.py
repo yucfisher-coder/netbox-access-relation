@@ -40,6 +40,25 @@ class WorkbookImportTests(TestCase):
         workbook.save(content)
         return content.getvalue()
 
+    def test_policy_import_persists_high_ports(self):
+        from netbox_access_relations.models import PolicyService
+
+        ApplicationSystem.objects.create(name="High source")
+        ApplicationSystem.objects.create(name="High target")
+        workbook = load_workbook(BytesIO(build_template("policies")))
+        workbook["访问关系"].append(("High ports", "", "High source", "High target", "", "", "", ""))
+        workbook["服务项"].append(("High ports", "tcp", "32768"))
+        workbook["服务项"].append(("High ports", "udp", "49152-65535"))
+        content = BytesIO()
+        workbook.save(content)
+
+        self.assertTrue(preview_workbook(content.getvalue(), "policies", self.user).valid)
+        apply_workbook(content.getvalue(), "policies", self.user)
+        self.assertEqual(
+            set(PolicyService.objects.values_list("protocol", "port_start", "port_end")),
+            {("tcp", 32768, 32768), ("udp", 49152, 65535)},
+        )
+
     def test_confirmation_displays_native_field_errors_without_server_error(self):
         from netbox_access_relations.views import ApplicationSystemImportView
 

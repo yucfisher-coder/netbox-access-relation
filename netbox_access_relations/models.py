@@ -357,8 +357,8 @@ class PolicyService(NetBoxModel):
     )
     protocol = models.CharField(_("Protocol"), max_length=3, choices=TransportProtocolChoices)
     is_any = models.BooleanField(_("Any port"), default=False)
-    port_start = models.PositiveSmallIntegerField(_("Port start"), blank=True, null=True)
-    port_end = models.PositiveSmallIntegerField(_("Port end"), blank=True, null=True)
+    port_start = models.PositiveIntegerField(_("Port start"), blank=True, null=True)
+    port_end = models.PositiveIntegerField(_("Port end"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Policy service")

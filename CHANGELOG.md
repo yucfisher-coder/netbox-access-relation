@@ -5,6 +5,13 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-10-17
+
+### Fixed
+
+- 修复访问关系导入、编辑及 API 保存大于 32767 的合法端口失败的问题；端口字段改用 PositiveIntegerField，保留 1～65535 校验。
+- 新增迁移 `0007_policyservice_port_integer`，扩容已有端口字段并保留记录；增加高端口持久化、工作簿导入及非法端口回归测试。
+
 ## [1.3.5] - 2026-10-17
 
 ### Added

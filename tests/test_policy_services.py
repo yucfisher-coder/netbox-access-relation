@@ -32,6 +32,22 @@ class PolicyServiceTests(TestCase):
             target_system=self.target,
         )
 
+    def test_high_ports_validate_and_persist(self):
+        policy = self.create_policy("High ports")
+        for protocol, start, end in [("tcp", 32768, 32768), ("udp", 49152, 65535)]:
+            with self.subTest(protocol=protocol):
+                service = PolicyService(policy=policy, protocol=protocol, port_start=start, port_end=end)
+                service.full_clean()
+                service.save()
+                service.refresh_from_db()
+                self.assertEqual((service.port_start, service.port_end), (start, end))
+
+    def test_ports_outside_network_range_are_rejected(self):
+        policy = self.create_policy("Invalid ports")
+        for start, end in [(0, 1), (65535, 65536), (50000, 40000)]:
+            with self.subTest(start=start, end=end), self.assertRaises(ValidationError):
+                PolicyService(policy=policy, protocol="tcp", port_start=start, port_end=end).full_clean()
+
     def test_any_is_canonicalized_and_matches_every_protocol_and_port(self):
         policy = self.create_policy("Any policy")
         service = PolicyService(policy=policy, protocol=TransportProtocolChoices.UDP, is_any=True)
