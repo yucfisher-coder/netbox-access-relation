@@ -3,6 +3,8 @@
 from django.utils.translation import gettext_lazy as _
 from netbox.ui import attrs, panels
 
+from ..models import PolicyService
+
 
 class ApplicationSystemPanel(panels.ObjectAttributesPanel):
     name = attrs.TextAttr("name", label=_("Name"))
@@ -32,6 +34,22 @@ class AccessPolicyPanel(panels.ObjectAttributesPanel):
     valid_from = attrs.DateTimeAttr("valid_from", label=_("Valid from"))
     valid_until = attrs.DateTimeAttr("valid_until", label=_("Valid until"))
     description = attrs.TextAttr("description", label=_("Description"))
+
+
+class AccessPolicyServicesPanel(panels.Panel):
+    title = _("Policy services")
+    template_name = "netbox_access_relations/inc/policy_services_panel.html"
+
+    def should_render(self, context):
+        return context["request"].user.has_perm("netbox_access_relations.view_policyservice")
+
+    def get_context(self, context):
+        return {
+            **super().get_context(context),
+            "services": PolicyService.objects.restrict(context["request"].user, "view").filter(
+                policy=context["object"],
+            ),
+        }
 
 
 class PolicyServicePanel(panels.ObjectAttributesPanel):

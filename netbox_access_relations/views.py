@@ -32,7 +32,10 @@ from utilities.exceptions import PermissionsViolation
 
 from . import filtersets, forms, tables
 from .models import AccessPolicy, ApplicationSystem, PolicyService, SystemAddress, SystemAlias
-from .ui.panels import AccessPolicyPanel, ApplicationSystemPanel, PolicyServicePanel, SystemAddressPanel, SystemAliasPanel
+from .ui.panels import (
+    AccessPolicyPanel, AccessPolicyServicesPanel, ApplicationSystemPanel,
+    PolicyServicePanel, SystemAddressPanel, SystemAliasPanel,
+)
 from .services.workbook_import import apply_workbook, build_template, preview_workbook
 from .services.zones import policy_zone_pairs
 
@@ -528,12 +531,7 @@ class AccessPolicyView(generic.ObjectView):
                 exclude_columns=["system"],
                 title=_("Target system IPAM information"),
             ),
-            ObjectsTablePanel(
-                "netbox_access_relations.policyservice",
-                filters={"policy_id": lambda context: context["object"].pk},
-                exclude_columns=["policy"],
-                title=_("Policy services"),
-            ),
+            AccessPolicyServicesPanel(),
         ],
     )
 

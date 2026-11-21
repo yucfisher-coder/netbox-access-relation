@@ -2,9 +2,12 @@ import csv
 from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+
+from users.models import ObjectPermission
 
 from netbox_access_relations.models import (
     AccessPolicy,
@@ -41,6 +44,54 @@ class PolicyServiceTests(TestCase):
                 service.save()
                 service.refresh_from_db()
                 self.assertEqual((service.port_start, service.port_end), (start, end))
+
+    def test_policy_detail_renders_only_its_own_service_rows(self):
+        self.client.force_login(get_user_model().objects.create_superuser(username="policy-detail-test"))
+        policy = self.create_policy("Ports")
+        any_policy = self.create_policy("All ports")
+        single = PolicyService.objects.create(policy=policy, protocol="tcp", port_start=8443, port_end=8443)
+        port_range = PolicyService.objects.create(policy=policy, protocol="udp", port_start=49152, port_end=65535)
+        any_service = PolicyService.objects.create(policy=any_policy, protocol="tcp", is_any=True)
+
+        response = self.client.get(policy.get_absolute_url())
+        self.assertContains(response, f'<a href="{single.get_absolute_url()}">8443</a>', html=True)
+        self.assertContains(response, f'<a href="{port_range.get_absolute_url()}">49152-65535</a>', html=True)
+        self.assertNotContains(response, any_service.get_absolute_url())
+
+        response = self.client.get(any_policy.get_absolute_url())
+        self.assertContains(response, f'<a href="{any_service.get_absolute_url()}">ANY</a>', html=True)
+        self.assertContains(response, "<td>TCP/UDP</td>", html=True)
+        self.assertNotContains(response, single.get_absolute_url())
+
+    def test_policy_detail_respects_service_permissions(self):
+        user = get_user_model().objects.create_user(username="policy-detail-reader")
+        policy = self.create_policy("Restricted ports")
+        visible = PolicyService.objects.create(policy=policy, protocol="tcp", port_start=443, port_end=443)
+        hidden = PolicyService.objects.create(policy=policy, protocol="udp", port_start=53, port_end=53)
+        permission = ObjectPermission.objects.create(name="View policies", actions=["view"])
+        permission.object_types.add(ContentType.objects.get_for_model(AccessPolicy))
+        permission.users.add(user)
+        self.client.force_login(user)
+
+        response = self.client.get(policy.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "AccessPolicyServicesPanel")
+        self.assertNotContains(response, visible.get_absolute_url())
+        self.assertNotContains(response, hidden.get_absolute_url())
+
+        permission = ObjectPermission.objects.create(
+            name="View selected services", actions=["view"], constraints={"pk": visible.pk},
+        )
+        permission.object_types.add(ContentType.objects.get_for_model(PolicyService))
+        permission.users.add(user)
+        response = self.client.get(policy.get_absolute_url())
+        self.assertContains(response, f'<a href="{visible.get_absolute_url()}">443</a>', html=True)
+        self.assertNotContains(response, hidden.get_absolute_url())
+
+    def test_policy_detail_without_services_renders_empty_state(self):
+        self.client.force_login(get_user_model().objects.create_superuser(username="policy-empty-test"))
+        response = self.client.get(self.create_policy("Empty").get_absolute_url())
+        self.assertContains(response, 'colspan="2" class="text-secondary"')
 
     def test_ports_outside_network_range_are_rejected(self):
         policy = self.create_policy("Invalid ports")
